@@ -1,0 +1,6 @@
+# VITE_GOOGLE_CLIENT_ID=votre_client_id_google
+# VITE_FACEBOOK_APP_ID=votre_app_id_facebook
+# VITE_API_URL=http://localhost:3000
+
+# Ces variables doivent être définies dans Railway
+# Pour le développement local, décommentez et ajoutez vos valeurs

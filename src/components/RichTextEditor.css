@@ -1,0 +1,226 @@
+/* Styles pour l'éditeur de texte riche */
+
+.rich-text-editor {
+  margin-bottom: 1rem;
+}
+
+/* Personnalisation de la barre d'outils Quill */
+.ql-toolbar {
+  border: 1px solid rgba(14, 216, 148, 0.2) !important;
+  border-radius: 8px 8px 0 0 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  padding: 12px !important;
+}
+
+.ql-toolbar .ql-formats {
+  margin-right: 15px;
+}
+
+.ql-toolbar button {
+  border-radius: 4px;
+  margin: 0 2px;
+  padding: 6px 8px;
+  transition: all 0.2s ease;
+}
+
+.ql-toolbar button:hover {
+  background: rgba(14, 216, 148, 0.1) !important;
+  color: #0ED894 !important;
+}
+
+.ql-toolbar button.ql-active {
+  background: rgba(14, 216, 148, 0.2) !important;
+  color: #0ED894 !important;
+}
+
+.ql-toolbar .ql-picker {
+  color: #1a1a1a;
+}
+
+.ql-toolbar .ql-picker-options {
+  background: white;
+  border: 1px solid rgba(14, 216, 148, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ql-toolbar .ql-picker-item:hover {
+  background: rgba(14, 216, 148, 0.1);
+  color: #0ED894;
+}
+
+/* Personnalisation de l'éditeur */
+.ql-container {
+  border: 1px solid rgba(14, 216, 148, 0.2) !important;
+  border-radius: 0 0 8px 8px !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 14px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+}
+
+.ql-editor {
+  min-height: 200px !important;
+  padding: 16px !important;
+  line-height: 1.6 !important;
+  color: #1a1a1a !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: #94A3B8 !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+}
+
+.ql-editor p {
+  margin-bottom: 8px;
+}
+
+.ql-editor h1, .ql-editor h2, .ql-editor h3 {
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  color: #1a1a1a;
+}
+
+.ql-editor h1 {
+  font-size: 1.5rem;
+}
+
+.ql-editor h2 {
+  font-size: 1.25rem;
+}
+
+.ql-editor h3 {
+  font-size: 1.125rem;
+}
+
+.ql-editor strong {
+  font-weight: 600;
+}
+
+.ql-editor em {
+  font-style: italic;
+}
+
+.ql-editor u {
+  text-decoration: underline;
+}
+
+.ql-editor s {
+  text-decoration: line-through;
+}
+
+.ql-editor a {
+  color: #0ED894;
+  text-decoration: none;
+}
+
+.ql-editor a:hover {
+  text-decoration: underline;
+}
+
+.ql-editor ul, .ql-editor ol {
+  padding-left: 1.5rem;
+  margin: 8px 0;
+}
+
+.ql-editor li {
+  margin-bottom: 4px;
+}
+
+.ql-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: block;
+}
+
+.ql-editor blockquote {
+  border-left: 4px solid #0ED894;
+  padding-left: 16px;
+  margin: 16px 0;
+  font-style: italic;
+  background: rgba(14, 216, 148, 0.05);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Couleurs personnalisées */
+.ql-snow .ql-color-picker .ql-picker-item[data-value="#0ED894"],
+.ql-snow .ql-background-picker .ql-picker-item[data-value="#0ED894"] {
+  background-color: #0ED894 !important;
+}
+
+/* Animation de focus */
+.ql-container.ql-snow {
+  transition: all 0.2s ease;
+}
+
+.ql-editor:focus {
+  outline: none;
+}
+
+.rich-text-editor:focus-within .ql-container {
+  border-color: #0ED894 !important;
+  box-shadow: 0 0 0 3px rgba(14, 216, 148, 0.1) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ql-toolbar {
+    padding: 8px !important;
+  }
+
+  .ql-toolbar .ql-formats {
+    margin-right: 8px;
+  }
+
+  .ql-toolbar button {
+    padding: 4px 6px;
+    margin: 0 1px;
+  }
+
+  .ql-editor {
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* États de loading et erreur */
+.rich-text-editor.loading .ql-editor {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.rich-text-editor.error .ql-container {
+  border-color: #ef4444 !important;
+}
+
+/* Bulle d'aide pour les boutons */
+.ql-toolbar button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  background: #1a1a1a;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-top: 30px;
+  margin-left: -20px;
+}
+
+/* Indicateur de contenu modifié */
+.rich-text-editor.modified::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: #0ED894;
+  border-radius: 50%;
+  z-index: 10;
+}

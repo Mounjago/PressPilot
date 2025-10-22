@@ -1,0 +1,636 @@
+/* Page Phoning - Centre d'appels */
+@import url('./global.css');
+
+.phoning-page {
+  font-family: 'Inter', sans-serif;
+  padding: 2.5rem;
+  background: transparent;
+  min-height: calc(100vh - 80px);
+}
+
+.phoning-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.phoning-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.phoning-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.phoning-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.phoning-status.online {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.phoning-status.offline {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.phoning-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(14, 216, 148, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(14, 216, 148, 0.4);
+}
+
+.btn-secondary {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+/* Statistiques */
+.phoning-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: rgba(14, 216, 148, 0.1);
+  border-radius: 12px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Contenu principal */
+.phoning-content {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.phoning-contacts {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.phoning-contacts::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(14, 216, 148, 0.1);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.contacts-search {
+  position: relative;
+}
+
+.contacts-search input {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(14, 216, 148, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  width: 250px;
+  transition: all 0.3s ease;
+}
+
+.contacts-search input:focus {
+  outline: none;
+  border-color: #0ED894;
+  box-shadow: 0 0 0 3px rgba(14, 216, 148, 0.1);
+}
+
+.contacts-to-call {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.contact-call-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: rgba(248, 250, 252, 0.5);
+  border: 1px solid rgba(14, 216, 148, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.contact-call-card:hover {
+  background: rgba(14, 216, 148, 0.05);
+  border-color: rgba(14, 216, 148, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(14, 216, 148, 0.1);
+}
+
+.contact-call-card.selected {
+  background: rgba(14, 216, 148, 0.1);
+  border-color: #0ED894;
+  box-shadow: 0 0 0 1px rgba(14, 216, 148, 0.2);
+}
+
+.contact-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.contact-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.contact-avatar.large {
+  width: 64px;
+  height: 64px;
+  font-size: 1.125rem;
+}
+
+.contact-details h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.contact-details p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.contact-phone {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 500 !important;
+  color: #0ED894 !important;
+}
+
+.contact-last-call {
+  font-style: italic;
+  color: #94a3b8 !important;
+}
+
+.contact-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-call {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  color: white;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-call:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(14, 216, 148, 0.4);
+}
+
+/* Sidebar */
+.phoning-sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  height: fit-content;
+  position: relative;
+  overflow: hidden;
+}
+
+.phoning-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+}
+
+.phoning-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.phoning-placeholder h3 {
+  margin: 0 0 0.5rem 0;
+  color: #64748b;
+  font-size: 1.125rem;
+}
+
+.phoning-placeholder p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.phoning-active {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.selected-contact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(14, 216, 148, 0.1);
+}
+
+.selected-contact-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+  color: #ef4444;
+}
+
+.selected-contact-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(14, 216, 148, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(14, 216, 148, 0.1);
+}
+
+.selected-contact-info h4 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.selected-contact-info p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.phone-number {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 600 !important;
+  color: #0ED894 !important;
+  font-size: 1rem !important;
+}
+
+.contact-call-history {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(14, 216, 148, 0.1);
+}
+
+.contact-call-history h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Historique récent */
+.phoning-recent-history {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.phoning-recent-history::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+}
+
+.phoning-recent-history h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.recent-calls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recent-call-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(248, 250, 252, 0.5);
+  border: 1px solid rgba(14, 216, 148, 0.1);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.recent-call-item:hover {
+  background: rgba(14, 216, 148, 0.05);
+  border-color: rgba(14, 216, 148, 0.2);
+}
+
+.call-status {
+  font-size: 1.125rem;
+  width: 24px;
+  text-align: center;
+}
+
+.call-details {
+  flex: 1;
+}
+
+.call-contact {
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.call-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.call-duration {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Loading */
+.phoning-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+}
+
+.phoning-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(14, 216, 148, 0.3);
+  border-top: 3px solid #0ED894;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .phoning-content {
+    grid-template-columns: 1fr;
+  }
+
+  .phoning-sidebar {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .phoning-page {
+    padding: 1.5rem;
+  }
+
+  .phoning-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .phoning-title-section {
+    justify-content: space-between;
+  }
+
+  .phoning-stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .contacts-search input {
+    width: 100%;
+  }
+
+  .contact-call-card {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .contact-info {
+    justify-content: center;
+  }
+
+  .contact-actions {
+    justify-content: center;
+  }
+}

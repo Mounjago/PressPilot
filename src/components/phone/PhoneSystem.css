@@ -1,0 +1,457 @@
+/**
+ * PHONE SYSTEM STYLES - Design cohérent avec PressPilot
+ * Utilise les variables CSS et le système de design existant
+ */
+
+/* Variables CSS héritées du design system PressPilot */
+.phone-system {
+  --accent-color: #0ED894;
+  --primary-color: #1e293b;
+  --gray-light: #f8fafc;
+  --gray-medium: #64748b;
+  --gray-dark: #475569;
+  --error-color: #ef4444;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --font-primary: 'Inter', sans-serif;
+}
+
+/* Container principal */
+.phone-system {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-primary);
+}
+
+.phone-system::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--success-color) 100%);
+}
+
+.phone-system-active {
+  box-shadow: 0 12px 48px rgba(14, 216, 148, 0.15);
+  transform: translateY(-2px);
+}
+
+.phone-system-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Loading state */
+.phone-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gray-medium);
+}
+
+.phone-loading-icon {
+  width: 32px;
+  height: 32px;
+  animation: phoneLoadingPulse 2s infinite ease-in-out;
+}
+
+@keyframes phoneLoadingPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Header avec statut */
+.phone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(228, 228, 231, 0.5);
+}
+
+.phone-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phone-status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.phone-status-idle .phone-status-indicator {
+  background-color: var(--gray-medium);
+}
+
+.phone-status-connecting .phone-status-indicator {
+  background-color: var(--warning-color);
+  animation: phoneStatusPulse 1.5s infinite;
+}
+
+.phone-status-connected .phone-status-indicator {
+  background-color: var(--success-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.phone-status-paused .phone-status-indicator {
+  background-color: var(--warning-color);
+}
+
+.phone-status-ended .phone-status-indicator {
+  background-color: var(--gray-medium);
+}
+
+@keyframes phoneStatusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+.phone-status-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary-color);
+}
+
+.phone-timer {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-color);
+  background: rgba(14, 216, 148, 0.1);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(14, 216, 148, 0.2);
+}
+
+/* Informations contact */
+.phone-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(14, 216, 148, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(14, 216, 148, 0.1);
+}
+
+.phone-contact-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.phone-contact-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.phone-contact-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--success-color) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.phone-contact-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-contact-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-contact-number {
+  font-size: 14px;
+  color: var(--accent-color);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.phone-contact-company {
+  font-size: 13px;
+  color: var(--gray-medium);
+  display: block;
+}
+
+/* Messages d'erreur */
+.phone-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: var(--error-color);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Contrôles d'appel */
+.phone-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.phone-call-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.phone-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.phone-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.phone-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Bouton d'appel principal */
+.phone-btn-call {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--success-color) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(14, 216, 148, 0.3);
+  flex: 1;
+}
+
+.phone-btn-call:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(14, 216, 148, 0.4);
+}
+
+.phone-btn-call:active {
+  transform: translateY(0);
+}
+
+/* Contrôles pendant l'appel */
+.phone-btn-mute,
+.phone-btn-pause,
+.phone-btn-volume {
+  background: var(--gray-light);
+  color: var(--gray-dark);
+  border: 1px solid rgba(228, 228, 231, 0.5);
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.phone-btn-mute:hover,
+.phone-btn-pause:hover,
+.phone-btn-volume:hover {
+  background: rgba(14, 216, 148, 0.1);
+  color: var(--accent-color);
+  border-color: rgba(14, 216, 148, 0.3);
+}
+
+.phone-btn-mute.active,
+.phone-btn-volume.active {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Bouton raccrocher */
+.phone-btn-end {
+  background: linear-gradient(135deg, var(--error-color) 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  flex: 1;
+}
+
+.phone-btn-end:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Zone de notes */
+.phone-notes {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(228, 228, 231, 0.5);
+}
+
+.phone-notes-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.phone-notes-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(228, 228, 231, 0.5);
+  border-radius: 8px;
+  font-family: var(--font-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.phone-notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(14, 216, 148, 0.1);
+}
+
+.phone-notes-hint {
+  font-size: 12px;
+  color: var(--gray-medium);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Résumé après appel */
+.phone-call-summary {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(16, 185, 129, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.phone-call-summary h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--success-color);
+}
+
+.phone-summary-details {
+  font-size: 14px;
+  color: var(--gray-dark);
+}
+
+.phone-summary-notes {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.phone-summary-notes strong {
+  color: var(--primary-color);
+}
+
+.phone-summary-notes p {
+  margin: 4px 0 0 0;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .phone-system {
+    padding: 16px;
+  }
+
+  .phone-contact-info {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .phone-contact-name {
+    white-space: normal;
+  }
+
+  .phone-call-controls {
+    gap: 8px;
+  }
+
+  .phone-btn-mute,
+  .phone-btn-pause,
+  .phone-btn-volume {
+    width: 44px;
+    height: 44px;
+  }
+
+  .phone-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Animations */
+@keyframes phoneSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phone-system {
+  animation: phoneSlideIn 0.3s ease-out;
+}
+
+/* États de focus pour accessibilité */
+.phone-btn:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.phone-notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(14, 216, 148, 0.1);
+}

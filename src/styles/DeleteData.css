@@ -1,0 +1,45 @@
+/* src/styles/DeleteData.css */
+.delete-data-container {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: 'Poppins', sans-serif; /* Utiliser une police cohérente avec l'app */
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--primary-color); /* Utiliser la couleur primaire de l'app */
+}
+
+p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: var(--gray); /* Utiliser une couleur plus neutre pour le texte */
+}
+
+.delete-button {
+  background-color: var(--accent-color); /* Utiliser la couleur d'accent de l'app */
+  color: var(--white); /* Assurer que le texte est bien visible */
+  padding: 1rem 2rem;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 30px; /* Coins arrondis pour un aspect moderne */
+  transition: background-color 0.3s, box-shadow 0.3s ease-in-out;
+}
+
+.delete-button:hover {
+  background-color: darkred;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Ajouter une ombre subtile au survol */
+}
+
+.message {
+  margin-top: 1rem;
+  font-size: 1rem;
+  color: green;
+  text-align: center; /* Centrer le message pour qu'il soit mieux visible */
+  font-weight: bold;
+}

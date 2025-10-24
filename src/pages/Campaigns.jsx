@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import api, { useMutation } from "../hooks/useApi";
+import { contactsApi } from "../api";
 import "../styles/Dashboard.css";
 import "../styles/Templates.css";
 import logo from "../assets/logo-bandstream.png";
@@ -207,16 +208,43 @@ const Campaigns = () => {
     }
   }, [artistId, projectId]);
 
-  const [contactLists, setContactLists] = useState([
-    { id: 1, name: "Presse généraliste nationale", count: 245, description: "Le Figaro, Le Monde, Libération..." },
-    { id: 2, name: "Presse musicale spécialisée", count: 156, description: "Rolling Stone, Musicrama, Tsugi..." },
-    { id: 3, name: "Médias digitaux & blogs", count: 423, description: "Konbini, Booska-P, Rapelite..." },
-    { id: 4, name: "Radios musicales", count: 187, description: "Skyrock, NRJ, Fun Radio..." },
-    { id: 5, name: "Médias urbains", count: 298, description: "Rapunchline, Mouv', 13or-du-hiphop..." },
-    { id: 6, name: "Presse internationale", count: 342, description: "Billboard, Complex, Pitchfork..." },
-    { id: 7, name: "Influenceurs & Youtubers", count: 89, description: "JuL, McFly, Squeezie..." },
-    { id: 8, name: "Presse régionale", count: 456, description: "Ouest France, Sud Ouest, Nice Matin..." }
-  ]);
+  const [contactLists, setContactLists] = useState([]);
+
+  // Load contact lists grouped by category
+  useEffect(() => {
+    const loadContactLists = async () => {
+      try {
+        // Get contacts and group them by category
+        const contacts = await contactsApi.getAll();
+
+        // Group contacts by category to create contact lists
+        const categoryGroups = contacts.reduce((groups, contact) => {
+          const category = contact.category || 'Non catégorisé';
+          if (!groups[category]) {
+            groups[category] = [];
+          }
+          groups[category].push(contact);
+          return groups;
+        }, {});
+
+        // Convert to contact lists format
+        const lists = Object.entries(categoryGroups).map(([category, contacts], index) => ({
+          id: index + 1,
+          name: category,
+          count: contacts.length,
+          description: `${contacts.length} contacts dans cette catégorie`,
+          contacts: contacts
+        }));
+
+        setContactLists(lists);
+      } catch (error) {
+        console.error('Erreur lors du chargement des listes de contacts:', error);
+        setContactLists([]);
+      }
+    };
+
+    loadContactLists();
+  }, []);
 
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -602,7 +630,7 @@ const Campaigns = () => {
                   <div className="form-group">
                     <label>Listes de contacts à cibler</label>
                     <div className="contact-lists-grid">
-                      {contactLists.map((list) => (
+                      {contactLists.length > 0 ? contactLists.map((list) => (
                         <div
                           key={list.id}
                           className={`contact-list-item ${newCampaign.contactListIds.includes(list.id) ? 'selected' : ''}`}
@@ -621,14 +649,32 @@ const Campaigns = () => {
                             />
                           </div>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="empty-state">
+                          <div className="empty-state-content">
+                            <p className="empty-state-title">Aucune liste de contacts disponible</p>
+                            <p className="empty-state-description">
+                              Vous devez d'abord ajouter des contacts pour créer une campagne.
+                            </p>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => navigate('/contacts')}
+                            >
+                              Ajouter des contacts
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="form-helper">
-                      Total sélectionné: {contactLists
-                        .filter(list => newCampaign.contactListIds.includes(list.id))
-                        .reduce((sum, list) => sum + list.count, 0)
-                        .toLocaleString()} contacts
-                    </p>
+                    {contactLists.length > 0 && (
+                      <p className="form-helper">
+                        Total sélectionné: {contactLists
+                          .filter(list => newCampaign.contactListIds.includes(list.id))
+                          .reduce((sum, list) => sum + list.count, 0)
+                          .toLocaleString()} contacts
+                      </p>
+                    )}
                   </div>
 
                   {/* Sélection du mode de création */}

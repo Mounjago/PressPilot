@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { TrendingUp, Mail, Users, Calendar } from "lucide-react";
+import { TrendingUp, Mail, Users, Calendar, Menu, X } from "lucide-react";
 import { contactsApi, campaignsApi, analyticsApi } from "../api";
 import "../styles/Dashboard.css";
 import "../styles/DashboardExtended.css";
@@ -21,6 +21,7 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -51,19 +52,14 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Erreur chargement dashboard:", error);
 
-      // En mode développement sans BDD, utiliser des données de démonstration
-      console.log('📋 Utilisation des données de démonstration');
+      // Reset to empty state when API fails
       setStats({
-        totalContacts: 248,
-        totalCampaigns: 12,
-        totalEmails: 3450,
-        avgOpenRate: 42.5,
-        recentActivity: [
-          { type: 'campaign', message: 'Nouvelle campagne "Sortie Album" envoyée', time: '2 min' },
-          { type: 'contact', message: '3 nouveaux journalistes ajoutés', time: '15 min' },
-          { type: 'email', message: '12 emails ouverts cette heure', time: '1h' }
-        ],
-        monthlyGrowth: 15.3
+        totalContacts: 0,
+        totalCampaigns: 0,
+        totalEmails: 0,
+        avgOpenRate: 0,
+        recentActivity: [],
+        monthlyGrowth: 0
       });
     } finally {
       setLoading(false);
@@ -83,9 +79,18 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
+        <div className="header-left">
+          <button
+            className="mobile-menu-toggle md:hidden"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Toggle menu"
+          >
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div className="logo-container">
+            <img src={logo} alt="Logo PressPilot" className="logo" />
+            <div className="app-name">PressPilot</div>
+          </div>
         </div>
         <div className="user-menu">
           <div className="avatar">{getInitials(user?.name || user?.email)}</div>
@@ -93,7 +98,7 @@ const Dashboard = () => {
       </header>
 
       <div className="dashboard-body">
-        <Sidebar />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <main className="dashboard-main">
           <div className="dashboard-header-content">
@@ -102,48 +107,67 @@ const Dashboard = () => {
           </div>
 
           {/* Cartes de statistiques */}
-          <section className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: "#E3F2FD" }}>
-                <Users style={{ color: "#2196F3" }} />
-              </div>
-              <div className="stat-content">
-                <p className="stat-label">Total Contacts</p>
-                <h3 className="stat-value">{stats.totalContacts.toLocaleString()}</h3>
-                <span className="stat-change positive">+{stats.monthlyGrowth}% ce mois</span>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: "#F3E5F5" }}>
-                <Mail style={{ color: "#9C27B0" }} />
-              </div>
-              <div className="stat-content">
-                <p className="stat-label">Campagnes</p>
-                <h3 className="stat-value">{stats.totalCampaigns}</h3>
-                <span className="stat-subtitle">{stats.totalEmails} emails envoyés</span>
+          <section className="stats-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
+            <div className="stat-card bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center space-x-4">
+                <div className="stat-icon flex-shrink-0 w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="stat-content min-w-0 flex-1">
+                  <p className="stat-label text-sm font-medium text-gray-600 mb-1">Total Contacts</p>
+                  <h3 className="stat-value text-xl sm:text-2xl font-bold text-gray-900 mb-1">{stats.totalContacts.toLocaleString()}</h3>
+                  <span className="stat-change text-xs sm:text-sm font-medium text-green-600">+{stats.monthlyGrowth}% ce mois</span>
+                </div>
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: "#E8F5E9" }}>
-                <TrendingUp style={{ color: "#4CAF50" }} />
-              </div>
-              <div className="stat-content">
-                <p className="stat-label">Taux d'ouverture</p>
-                <h3 className="stat-value">{stats.avgOpenRate.toFixed(1)}%</h3>
-                <span className="stat-subtitle">Moyenne globale</span>
+            <div className="stat-card bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center space-x-4">
+                <div className="stat-icon flex-shrink-0 w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                  <Mail className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="stat-content min-w-0 flex-1">
+                  <p className="stat-label text-sm font-medium text-gray-600 mb-1">Campagnes</p>
+                  <h3 className="stat-value text-xl sm:text-2xl font-bold text-gray-900 mb-1">{stats.totalCampaigns}</h3>
+                  <span className="stat-subtitle text-xs sm:text-sm text-gray-500">{stats.totalEmails} emails envoyés</span>
+                </div>
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: "#FFF3E0" }}>
-                <Calendar style={{ color: "#FF9800" }} />
+            <div className="stat-card bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center space-x-4">
+                <div className="stat-icon flex-shrink-0 w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="stat-content min-w-0 flex-1">
+                  <p className="stat-label text-sm font-medium text-gray-600 mb-1">Taux d'ouverture</p>
+                  <h3 className="stat-value text-xl sm:text-2xl font-bold text-gray-900 mb-1">{stats.avgOpenRate.toFixed(1)}%</h3>
+                  <span className="stat-subtitle text-xs sm:text-sm text-gray-500">Moyenne globale</span>
+                </div>
               </div>
-              <div className="stat-content">
-                <p className="stat-label">Prochaine campagne</p>
-                <h3 className="stat-value">Dans 3 jours</h3>
-                <span className="stat-subtitle">Release EP - Nova</span>
+            </div>
+
+            <div className="stat-card bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center space-x-4">
+                <div className="stat-icon flex-shrink-0 w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="stat-content min-w-0 flex-1">
+                  <p className="stat-label text-sm font-medium text-gray-600 mb-1">Prochaine campagne</p>
+                  {loading ? (
+                    <div className="h-6 bg-gray-200 rounded animate-pulse mb-1"></div>
+                  ) : stats.totalCampaigns > 0 ? (
+                    <>
+                      <h3 className="stat-value text-lg sm:text-xl font-bold text-gray-900 mb-1">Planifiée</h3>
+                      <span className="stat-subtitle text-xs sm:text-sm text-gray-500 truncate">Consultez vos campagnes</span>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="stat-value text-lg sm:text-xl font-bold text-gray-500 mb-1">Aucune</h3>
+                      <span className="stat-subtitle text-xs sm:text-sm text-gray-500 truncate">Créez votre première campagne</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </section>

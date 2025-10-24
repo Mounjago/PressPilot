@@ -20,6 +20,7 @@ import logo from "../assets/logo-bandstream.png";
 
 // Composants
 import Sidebar from "../components/Sidebar";
+import { analyticsApi } from "../api";
 
 ChartJS.register(
   CategoryScale,
@@ -40,76 +41,26 @@ const AnalyticsNew = () => {
   // Données d'analytics
   const [analytics, setAnalytics] = useState({
     overview: {
-      totalCampaigns: 12,
-      totalEmails: 3450,
-      avgOpenRate: 42.5,
-      avgClickRate: 18.2,
-      totalReplies: 89,
-      totalUnsubscribes: 23
+      totalCampaigns: 0,
+      totalEmails: 0,
+      avgOpenRate: 0,
+      avgClickRate: 0,
+      totalReplies: 0,
+      totalUnsubscribes: 0
     },
     trends: {
-      openRate: 2.5,
-      clickRate: -1.2,
-      replyRate: 5.8,
-      unsubscribeRate: -0.5
+      openRate: 0,
+      clickRate: 0,
+      replyRate: 0,
+      unsubscribeRate: 0
     },
-    topCampaigns: [
-      {
-        id: 1,
-        name: "Lancement Album - Nova Dreams",
-        openRate: 58.2,
-        clickRate: 24.1,
-        replies: 15,
-        sentDate: "2024-01-15"
-      },
-      {
-        id: 2,
-        name: "Interview Radio Disponible",
-        openRate: 55.8,
-        clickRate: 28.4,
-        replies: 12,
-        sentDate: "2024-01-08"
-      },
-      {
-        id: 3,
-        name: "Single Promo - Echo",
-        openRate: 38.9,
-        clickRate: 15.6,
-        replies: 5,
-        sentDate: "2024-01-12"
-      }
-    ],
-    topContacts: [
-      {
-        id: 1,
-        name: "Marie Dubois",
-        company: "Le Figaro",
-        engagement: 85,
-        replies: 8,
-        opens: 24
-      },
-      {
-        id: 2,
-        name: "Pierre Martin",
-        company: "Radio Nova",
-        engagement: 78,
-        replies: 6,
-        opens: 19
-      },
-      {
-        id: 3,
-        name: "Sophie Leroux",
-        company: "Les Inrockuptibles",
-        engagement: 72,
-        replies: 5,
-        opens: 15
-      }
-    ],
+    topCampaigns: [],
+    topContacts: [],
     timeData: {
-      labels: ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul"],
-      openRates: [35, 42, 38, 45, 48, 43, 47],
-      clickRates: [12, 18, 15, 21, 24, 19, 22],
-      emailsSent: [180, 245, 320, 280, 350, 295, 380]
+      labels: [],
+      openRates: [],
+      clickRates: [],
+      emailsSent: []
     }
   });
 
@@ -121,11 +72,38 @@ const AnalyticsNew = () => {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      // Simulation API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Les données sont déjà définies dans le state
+
+      // Load real analytics data from API
+      const data = await analyticsApi.getCampaigns(selectedPeriod);
+
+      setAnalytics({
+        overview: data.overview || {
+          totalCampaigns: 0,
+          totalEmails: 0,
+          avgOpenRate: 0,
+          avgClickRate: 0,
+          totalReplies: 0,
+          totalUnsubscribes: 0
+        },
+        trends: data.trends || {
+          openRate: 0,
+          clickRate: 0,
+          replyRate: 0,
+          unsubscribeRate: 0
+        },
+        topCampaigns: data.topCampaigns || [],
+        topContacts: data.topContacts || [],
+        timeData: data.timeData || {
+          labels: [],
+          openRates: [],
+          clickRates: [],
+          emailsSent: []
+        }
+      });
+
     } catch (error) {
       console.error('Erreur chargement analytics:', error);
+      // Keep empty state on error instead of mock data
     } finally {
       setLoading(false);
     }

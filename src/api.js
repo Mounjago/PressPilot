@@ -80,6 +80,12 @@ export const contactsApi = {
     return response.data;
   },
 
+  // Obtenir le nombre total de contacts
+  getCount: async () => {
+    const response = await api.get('/api/contacts/count');
+    return response.data;
+  },
+
   // Obtenir les statistiques des contacts
   getStats: async () => {
     const response = await api.get('/api/contacts/stats');
@@ -387,6 +393,12 @@ export const analyticsApi = {
   // Analytics des projets
   getProjects: async (filters = {}) => {
     const response = await api.get('/api/analytics/projects', { params: filters });
+    return response.data;
+  },
+
+  // Best times analytics
+  getBestTimes: async (period = '30d') => {
+    const response = await api.get('/api/analytics/best-times', { params: { period } });
     return response.data;
   },
 

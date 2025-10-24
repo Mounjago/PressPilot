@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
+import "./utils/clearData.js"; // Utilitaires de réinitialisation
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -12,8 +13,10 @@ import Analytics from "./pages/Analytics";
 import CampaignAnalytics from "./pages/CampaignAnalytics";
 import JournalistAnalytics from "./pages/JournalistAnalytics";
 import BestTimesAnalytics from "./pages/BestTimesAnalytics";
+import Settings from "./pages/Settings";
 import HomePage from "./pages/HomePage";
 import TestPage from "./pages/TestPage";
+import TestConnectivity from "./pages/TestConnectivity";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -82,6 +85,7 @@ function App() {
       {/* Routes publiques */}
       <Route path="/" element={<HomePage />} />
       <Route path="/test" element={<TestPage />} />
+      <Route path="/test-connectivity" element={<TestConnectivity />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
@@ -92,11 +96,13 @@ function App() {
         <Route path="/artists/:artistId/projects" element={<Projects />} />
         <Route path="/artists/:artistId/projects/:projectId/campaigns" element={<Campaigns />} />
         <Route path="/contacts" element={<Contacts />} />
+        <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/phoning" element={<Phoning />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/analytics/campaigns/:campaignId" element={<CampaignAnalytics />} />
         <Route path="/analytics/journalists/:contactId" element={<JournalistAnalytics />} />
         <Route path="/analytics/best-times" element={<BestTimesAnalytics />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
   );

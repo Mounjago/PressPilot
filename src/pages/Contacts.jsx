@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Search, Phone, Filter, Grid, List, Plus, PhoneCall } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
+import { contactsApi } from "../api";
 import "../styles/Dashboard.css";
-import "../styles/Contacts.css";
+import "../styles/ContactsNew.css";
 import logo from "../assets/logo-bandstream.png";
 
 // Composants
@@ -30,61 +31,6 @@ const Contacts = () => {
   const [showImporter, setShowImporter] = useState(false);
   const [showCsvImporter, setShowCsvImporter] = useState(false);
 
-  // Contacts de démonstration (à remplacer par une API)
-  const demoContacts = [
-    {
-      id: 1,
-      name: "Marie Dubois",
-      title: "Journaliste Musique",
-      company: "Le Figaro",
-      phone: "+33 1 23 45 67 89",
-      email: "marie.dubois@lefigaro.fr",
-      location: "Paris, France",
-      notes: "Spécialisée dans la musique électronique, très intéressée par les nouveaux talents.",
-      tags: ["musique", "électronique", "presse"],
-      priority: "high",
-      avatar: null
-    },
-    {
-      id: 2,
-      name: "Pierre Martin",
-      title: "Programmateur",
-      company: "Radio Nova",
-      phone: "+33 1 98 76 54 32",
-      email: "p.martin@radionova.com",
-      location: "Paris, France",
-      notes: "Cherche des artistes émergents pour les playlists nocturnes.",
-      tags: ["radio", "programmation"],
-      priority: "medium",
-      avatar: null
-    },
-    {
-      id: 3,
-      name: "Sophie Leroux",
-      title: "Critique Musicale",
-      company: "Les Inrockuptibles",
-      phone: "+33 6 12 34 56 78",
-      email: "sophie.leroux@lesinrocks.com",
-      location: "Lyon, France",
-      notes: "Couvre principalement le rock indépendant et la scène alternative.",
-      tags: ["critique", "rock", "indé"],
-      priority: "high",
-      avatar: null
-    },
-    {
-      id: 4,
-      name: "Thomas Bernard",
-      title: "Booker",
-      company: "Festivals United",
-      phone: "+33 4 56 78 90 12",
-      email: "thomas@festivals-united.com",
-      location: "Marseille, France",
-      notes: "Responsable de la programmation pour plusieurs festivals d'été.",
-      tags: ["festivals", "booking"],
-      priority: "medium",
-      avatar: null
-    }
-  ];
 
   // Chargement des contacts
   useEffect(() => {
@@ -122,15 +68,16 @@ const Contacts = () => {
   const loadContacts = async () => {
     try {
       setLoading(true);
-      // Ici, vous intégreriez l'API réelle
-      // const response = await api.get('/contacts');
-      // setContacts(response.data);
+      console.log('🔄 Chargement des contacts...');
 
-      // Pour la démo, utilisation des contacts statiques
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulation loading
-      setContacts(demoContacts);
+      const response = await contactsApi.getAll();
+      console.log('📇 Contacts loaded:', response);
+
+      setContacts(response.contacts || []);
+
     } catch (error) {
       console.error('Erreur chargement contacts:', error);
+      setContacts([]);
     } finally {
       setLoading(false);
     }
@@ -186,210 +133,202 @@ const Contacts = () => {
     setSelectedContact(null);
   };
 
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <Sidebar />
+        <main className="main-content">
+          <div className="dashboard-header">
+            <h1 className="dashboard-title">CONTACTS</h1>
+            <div className="loading-spinner"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
+      <Sidebar />
+
+      <main className="main-content">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">CONTACTS</h1>
+          <p className="dashboard-subtitle">Gestion de vos contacts presse et médias</p>
+
+          <div className="contacts-actions">
+            <button
+              className="btn-secondary"
+              onClick={() => setShowImporter(true)}
+              style={{ marginRight: '10px' }}
+            >
+              📻 Importer journalistes FR
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => setShowCsvImporter(true)}
+              style={{ marginRight: '10px' }}
+            >
+              📁 Importer CSV/Excel
+            </button>
+            <button className="btn-primary">
+              <Plus />
+              Nouveau contact
+            </button>
+          </div>
         </div>
-        <div className="user-menu">
-          <div className="avatar">JP</div>
-        </div>
-      </header>
 
-      <div className="dashboard-body">
-        <Sidebar />
+        {/* Barre de recherche et filtres */}
+        <section className="contacts-filters">
+          <div className="contacts-search">
+            <Search />
+            <input
+              type="text"
+              placeholder="Rechercher un contact..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-        <main className="dashboard-main">
-          <div className="contacts-header">
-            <div className="contacts-title-section">
-              <h1 className="dashboard-title">Contacts</h1>
-              <span className="contacts-count">
-                {filteredContacts.length} contact{filteredContacts.length > 1 ? 's' : ''}
-              </span>
-            </div>
+          <div className="contacts-filter-controls">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="contacts-filter-select"
+            >
+              <option value="all">Tous les contacts</option>
+              <option value="with-phone">Avec téléphone</option>
+              <option value="high-priority">Priorité élevée</option>
+              <option value="recent-calls">Appels récents</option>
+            </select>
 
-            <div className="contacts-actions">
+            <div className="contacts-view-toggle">
               <button
-                className="btn-secondary"
-                onClick={() => setShowImporter(true)}
-                style={{ marginRight: '10px' }}
+                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => setViewMode('grid')}
               >
-                📻 Importer journalistes FR
+                <Grid />
               </button>
               <button
-                className="btn-secondary"
-                onClick={() => setShowCsvImporter(true)}
-                style={{ marginRight: '10px' }}
+                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
               >
-                📁 Importer CSV/Excel
-              </button>
-              <button className="btn-primary">
-                <Plus />
-                Nouveau contact
+                <List />
               </button>
             </div>
           </div>
+        </section>
 
-          {/* Barre de recherche et filtres */}
-          <section className="contacts-filters">
-            <div className="contacts-search">
-              <Search />
-              <input
-                type="text"
-                placeholder="Rechercher un contact..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="contacts-filter-controls">
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="contacts-filter-select"
-              >
-                <option value="all">Tous les contacts</option>
-                <option value="with-phone">Avec téléphone</option>
-                <option value="high-priority">Priorité élevée</option>
-                <option value="recent-calls">Appels récents</option>
-              </select>
-
-              <div className="contacts-view-toggle">
-                <button
-                  className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid />
-                </button>
-                <button
-                  className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-                  onClick={() => setViewMode('list')}
-                >
-                  <List />
-                </button>
+        {/* Contenu principal */}
+        <div className="contacts-content">
+          {/* Liste des contacts */}
+          <div className={`contacts-list ${viewMode}`}>
+            {filteredContacts.length === 0 ? (
+              <div className="contacts-empty">
+                <Phone className="contacts-empty-icon" />
+                <h3>Aucun contact trouvé</h3>
+                <p>Aucun contact ne correspond à vos critères de recherche.</p>
               </div>
-            </div>
-          </section>
-
-          {/* Contenu principal */}
-          <div className="contacts-content">
-            {/* Liste des contacts */}
-            <div className={`contacts-list ${viewMode}`}>
-              {loading ? (
-                <div className="contacts-loading">
-                  <div className="contacts-loading-spinner"></div>
-                  <span>Chargement des contacts...</span>
-                </div>
-              ) : filteredContacts.length === 0 ? (
-                <div className="contacts-empty">
-                  <Phone className="contacts-empty-icon" />
-                  <h3>Aucun contact trouvé</h3>
-                  <p>Aucun contact ne correspond à vos critères de recherche.</p>
-                </div>
-              ) : (
-                filteredContacts.map((contact) => (
-                  <ContactCard
-                    key={contact.id}
-                    contact={contact}
-                    isSelected={selectedContact?.id === contact.id}
-                    onSelect={() => handleContactSelect(contact)}
-                    onCall={handleCallContact}
-                    showPhoneSystem={selectedContact?.id === contact.id && showPhoneSystem}
-                    showCallHistory={selectedContact?.id === contact.id && showPhoneSystem}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Sidebar avec détails du contact sélectionné */}
-            {selectedContact && (
-              <div className="contacts-sidebar">
-                <div className="contacts-sidebar-header">
-                  <h3>Détails du contact</h3>
-                  <button
-                    className="contacts-sidebar-close"
-                    onClick={handleClosePhoneSystem}
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div className="contacts-sidebar-content">
-                  {showPhoneSystem && (
-                    <div className="contacts-phone-section">
-                      <PhoneSystem
-                        contact={selectedContact}
-                        onCallStart={(call) => {
-                          setCurrentCall(call);
-                          setShowCallModal(true);
-                        }}
-                        onCallEnd={() => {
-                          setCurrentCall(null);
-                          setShowCallModal(false);
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="contacts-history-section">
-                    <CallHistory
-                      contactId={selectedContact.id}
-                      onCallInitiated={() => {
-                        // Gestion si nécessaire
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+            ) : (
+              filteredContacts.map((contact) => (
+                <ContactCard
+                  key={contact.id}
+                  contact={contact}
+                  isSelected={selectedContact?.id === contact.id}
+                  onSelect={() => handleContactSelect(contact)}
+                  onCall={handleCallContact}
+                  showPhoneSystem={selectedContact?.id === contact.id && showPhoneSystem}
+                  showCallHistory={selectedContact?.id === contact.id && showPhoneSystem}
+                />
+              ))
             )}
           </div>
 
-        </main>
-      </div>
+          {/* Sidebar avec détails du contact sélectionné */}
+          {selectedContact && (
+            <div className="contacts-sidebar">
+              <div className="contacts-sidebar-header">
+                <h3>Détails du contact</h3>
+                <button
+                  className="contacts-sidebar-close"
+                  onClick={handleClosePhoneSystem}
+                >
+                  ×
+                </button>
+              </div>
 
-      {/* Modal d'appel */}
-      {showCallModal && currentCall && (
-        <CallModal
-          isOpen={showCallModal}
-          call={currentCall}
-          onClose={() => {
-            setShowCallModal(false);
-            setCurrentCall(null);
-          }}
-          onMinimize={setIsCallModalMinimized}
-          isMinimized={isCallModalMinimized}
-        />
-      )}
+              <div className="contacts-sidebar-content">
+                {showPhoneSystem && (
+                  <div className="contacts-phone-section">
+                    <PhoneSystem
+                      contact={selectedContact}
+                      onCallStart={(call) => {
+                        setCurrentCall(call);
+                        setShowCallModal(true);
+                      }}
+                      onCallEnd={() => {
+                        setCurrentCall(null);
+                        setShowCallModal(false);
+                      }}
+                    />
+                  </div>
+                )}
 
-      {/* Modal d'import journalistes */}
-      <AnimatePresence>
-        {showImporter && (
-          <JournalistImporter
-            onClose={() => setShowImporter(false)}
-            onImportComplete={(importData) => {
-              // Recharger les contacts après l'import
-              loadContacts();
-              setShowImporter(false);
+                <div className="contacts-history-section">
+                  <CallHistory
+                    contactId={selectedContact.id}
+                    onCallInitiated={() => {
+                      // Gestion si nécessaire
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal d'appel */}
+        {showCallModal && currentCall && (
+          <CallModal
+            isOpen={showCallModal}
+            call={currentCall}
+            onClose={() => {
+              setShowCallModal(false);
+              setCurrentCall(null);
             }}
+            onMinimize={setIsCallModalMinimized}
+            isMinimized={isCallModalMinimized}
           />
         )}
-      </AnimatePresence>
 
-      {/* Modal d'import CSV/Excel */}
-      <AnimatePresence>
-        {showCsvImporter && (
-          <ContactsImporter
-            onClose={() => setShowCsvImporter(false)}
-            onImportComplete={(importData) => {
-              // Recharger les contacts après l'import
-              loadContacts();
-              setShowCsvImporter(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
+        {/* Modal d'import journalistes */}
+        <AnimatePresence>
+          {showImporter && (
+            <JournalistImporter
+              onClose={() => setShowImporter(false)}
+              onImportComplete={(importData) => {
+                // Recharger les contacts après l'import
+                loadContacts();
+                setShowImporter(false);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Modal d'import CSV/Excel */}
+        <AnimatePresence>
+          {showCsvImporter && (
+            <ContactsImporter
+              onClose={() => setShowCsvImporter(false)}
+              onImportComplete={(importData) => {
+                // Recharger les contacts après l'import
+                loadContacts();
+                setShowCsvImporter(false);
+              }}
+            />
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   );
 };

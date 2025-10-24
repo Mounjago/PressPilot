@@ -201,6 +201,9 @@ const Campaigns = () => {
 
     if (artistId && projectId) {
       loadData();
+    } else {
+      // Si pas de paramètres, pas de chargement nécessaire
+      setLoading(false);
     }
   }, [artistId, projectId]);
 
@@ -325,7 +328,8 @@ const Campaigns = () => {
 
   // Fonction pour générer un lien public EPK
   const generateEPKLink = () => {
-    const epkId = `epk_${artist.id}_${Date.now()}`;
+    const artistId = artist?._id || artist?.id || 'unknown';
+    const epkId = `epk_${artistId}_${Date.now()}`;
     const epkLink = `https://presspilot.com/epk/${epkId}`;
 
     setNewCampaign(prev => ({
@@ -351,12 +355,12 @@ const Campaigns = () => {
     // Sinon, créer l'artiste en MongoDB à partir des données localStorage
     try {
       const artistData = {
-        name: artist.name,
-        genre: artist.genre || 'Non spécifié',
-        location: artist.location || '',
-        description: artist.description || '',
-        website: artist.website || '',
-        socialLinks: artist.socialLinks || {}
+        name: artist?.name || 'Artiste inconnu',
+        genre: artist?.genre || 'Non spécifié',
+        location: artist?.location || '',
+        description: artist?.description || '',
+        website: artist?.website || '',
+        socialLinks: artist?.socialLinks || {}
       };
 
       console.log('📝 Création artiste MongoDB:', artistData);
@@ -388,10 +392,10 @@ const Campaigns = () => {
     // Sinon, créer le projet en MongoDB à partir des données localStorage
     try {
       const projectData = {
-        name: project.name,
-        description: project.description || '',
-        releaseDate: project.releaseDate || '',
-        status: project.status || 'En préparation',
+        name: project?.name || 'Projet inconnu',
+        description: project?.description || '',
+        releaseDate: project?.releaseDate || '',
+        status: project?.status || 'En préparation',
         artistId: artistMongoId
       };
 
@@ -471,61 +475,61 @@ const Campaigns = () => {
     );
   }
 
-  // Si les données ne sont pas disponibles
-  if (!artist || !project) {
+  // Si on a des paramètres mais pas de données, afficher l'erreur
+  if ((artistId && projectId) && (!artist || !project)) {
     return (
       <div className="dashboard">
-        <div className="error-state">
-          <h3>Erreur</h3>
-          <p>Impossible de charger les données de l'artiste ou du projet.</p>
-          <button onClick={() => navigate('/artists')} className="btn-secondary">
-            Retour aux artistes
-          </button>
-        </div>
+        <Sidebar />
+        <main className="main-content">
+          <div className="dashboard-header">
+            <h1 className="dashboard-title">CAMPAGNES</h1>
+            <p className="dashboard-subtitle">Erreur de chargement</p>
+          </div>
+          <div className="error-state">
+            <h3>Erreur</h3>
+            <p>Impossible de charger les données de l'artiste ou du projet.</p>
+            <button onClick={() => navigate('/artists')} className="btn-secondary">
+              Retour aux artistes
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">JP</div>
-        </div>
-      </header>
+      <Sidebar />
 
-      <div className="dashboard-body">
-        <Sidebar />
+      <main className="main-content">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">CAMPAGNES</h1>
+          <p className="dashboard-subtitle">
+            {(artist && project) ? `${project.name} • ${artist.name}` : 'Gestion des campagnes de presse'}
+          </p>
 
-        <main className="dashboard-main">
+          <button
+            className="btn-primary"
+            onClick={() => setShowCreateForm(true)}
+          >
+            + Nouvelle campagne
+          </button>
+        </div>
+
+        {(artist && project) && (
           <div className="breadcrumb">
             <button onClick={() => navigate('/artists')} className="breadcrumb-link">
               Artistes
             </button>
             <span className="breadcrumb-separator">›</span>
             <button onClick={() => navigate(`/artists/${artistId}/projects`)} className="breadcrumb-link">
-              {artist?.name || 'Artiste'}
+              {artist.name}
             </button>
             <span className="breadcrumb-separator">›</span>
-            <span className="breadcrumb-current">{project?.name || 'Projet'}</span>
+            <span className="breadcrumb-current">{project.name}</span>
           </div>
+        )}
 
-          <div className="page-header">
-            <div>
-              <h1 className="dashboard-title">Campagnes - {project?.name || 'Projet'}</h1>
-              <p className="page-subtitle">{artist?.name || 'Artiste'} • {project?.type || ''}</p>
-            </div>
-            <button
-              className="btn-primary"
-              onClick={() => setShowCreateForm(true)}
-            >
-              + Nouvelle campagne
-            </button>
-          </div>
 
           {showCreateForm && (
             <section className="dashboard-section">
@@ -700,8 +704,8 @@ const Campaigns = () => {
                         <TemplateSelector
                           onTemplateSelect={handleTemplateSelect}
                           campaignType={newCampaign.type}
-                          artistName={artist.name}
-                          projectName={project.name}
+                          artistName={artist?.name || 'Artiste'}
+                          projectName={project?.name || 'Projet'}
                         />
                       </div>
 
@@ -711,8 +715,8 @@ const Campaigns = () => {
                           <TemplateBrandingManager
                             onBrandingChange={handleTemplateBrandingChange}
                             initialBranding={{
-                              companyName: artist.name,
-                              subtitle: `Attaché de Presse - ${project.name}`,
+                              companyName: artist?.name || 'Artiste',
+                              subtitle: `Attaché de Presse - ${project?.name || 'Projet'}`,
                               primaryColor: '#0ED894',
                               backgroundColor: '#000000',
                               textColor: '#ffffff'
@@ -728,9 +732,9 @@ const Campaigns = () => {
                             campaignType={newCampaign.type}
                             onVariablesChange={handleTemplateVariablesChange}
                             initialVariables={{
-                              artistName: artist.name,
-                              projectName: project.name,
-                              projectType: project.type || 'Album',
+                              artistName: artist?.name || 'Artiste',
+                              projectName: project?.name || 'Projet',
+                              projectType: project?.type || 'Album',
                               contactName: 'Prénom Nom',
                               contactEmail: 'contact@presspilot.com',
                               epkLink: newCampaign.epkLink
@@ -767,7 +771,7 @@ const Campaigns = () => {
                           <span className="epk-icon">EPK</span>
                           <div className="epk-prompt-text">
                             <h4>Dossier de presse complet</h4>
-                            <p>Générez un lien vers l'EPK de {artist.name} pour faciliter le travail des journalistes</p>
+                            <p>Générez un lien vers l'EPK de {artist?.name || 'l\'artiste'} pour faciliter le travail des journalistes</p>
                           </div>
                           <button
                             type="button"
@@ -831,11 +835,10 @@ const Campaigns = () => {
             </section>
           )}
 
-          <section className="dashboard-section">
-            <CampaignListAdvanced artistId={artistId} projectId={projectId} />
-          </section>
-        </main>
-      </div>
+        <section className="dashboard-section">
+          <CampaignListAdvanced artistId={artistId} projectId={projectId} />
+        </section>
+      </main>
     </div>
   );
 };

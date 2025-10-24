@@ -130,15 +130,15 @@ const Artists = () => {
 
     try {
       if (provider === 'dropbox') {
-        // Simulation de connexion Dropbox
-        alert('Redirection vers Dropbox pour authentification...');
-        // En production, ici vous intégreriez l'API Dropbox
+        // Intégration Dropbox API
+        console.log('Connexion à Dropbox...');
+        // TODO: Intégrer l'API Dropbox
         // window.location.href = '/auth/dropbox';
         setCloudConnections(prev => ({ ...prev, dropbox: true }));
       } else if (provider === 'googledrive') {
-        // Simulation de connexion Google Drive
-        alert('Redirection vers Google Drive pour authentification...');
-        // En production, ici vous intégreriez l'API Google Drive
+        // Intégration Google Drive API
+        console.log('Connexion à Google Drive...');
+        // TODO: Intégrer l'API Google Drive
         // window.location.href = '/auth/googledrive';
         setCloudConnections(prev => ({ ...prev, googledrive: true }));
       }

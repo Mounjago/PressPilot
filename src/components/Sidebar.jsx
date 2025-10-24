@@ -18,6 +18,10 @@ const Sidebar = () => {
           Contacts
         </NavLink>
 
+        <NavLink to="/campaigns" className="nav-item">
+          Campagnes
+        </NavLink>
+
         <NavLink to="/phoning" className="nav-item">
           Phoning
         </NavLink>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/Phoning.css';
+import { Phone, Clock, Users, TrendingUp } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
+import '../styles/Dashboard.css';
 import PhoneSystem from '../components/phone/PhoneSystem';
 import CallHistory from '../components/phone/CallHistory';
 import callsApi from '../services/callsApi';
@@ -33,37 +35,8 @@ const Phoning = () => {
       const statsResponse = await callsApi.getCallStats();
       setCallStats(statsResponse.data || callStats);
 
-      // Charger les contacts (simulation - à remplacer par votre API)
-      const mockContacts = [
-        {
-          id: 1,
-          name: 'Marie Dubois',
-          email: 'marie.dubois@lemonde.fr',
-          phone: '+33123456789',
-          company: 'Le Monde',
-          position: 'Journaliste Culture',
-          lastCall: new Date(Date.now() - 86400000) // Hier
-        },
-        {
-          id: 2,
-          name: 'Pierre Martin',
-          email: 'p.martin@radiofrance.fr',
-          phone: '+33987654321',
-          company: 'Radio France',
-          position: 'Responsable Musique',
-          lastCall: new Date(Date.now() - 259200000) // Il y a 3 jours
-        },
-        {
-          id: 3,
-          name: 'Sophie Laurent',
-          email: 'sophie@rocknfolk.com',
-          phone: '+33555123456',
-          company: 'Rock & Folk',
-          position: 'Rédactrice en Chef',
-          lastCall: null
-        }
-      ];
-      setContacts(mockContacts);
+      // Les contacts seront chargés depuis l'API des contacts
+      setContacts([]);
 
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
@@ -98,78 +71,73 @@ const Phoning = () => {
 
   if (loading) {
     return (
-      <div className="phoning-page">
-        <div className="phoning-loading">
-          <div className="phoning-loading-spinner"></div>
-          <p>Chargement du système de phoning...</p>
-        </div>
+      <div className="dashboard">
+        <Sidebar />
+        <main className="main-content">
+          <div className="dashboard-header">
+            <h1 className="dashboard-title">PHONING</h1>
+            <div className="loading-spinner"></div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="phoning-page">
-      <div className="phoning-header">
-        <div className="phoning-title-section">
-          <h1 className="phoning-title">📞 Centre d'appels</h1>
+    <div className="dashboard">
+      <Sidebar />
+
+      <main className="main-content">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">PHONING</h1>
+          <p className="dashboard-subtitle">Centre d'appels et gestion des contacts</p>
+
           <div className="phoning-status online">
             <span className="status-indicator"></span>
             En ligne
           </div>
         </div>
 
-        <div className="phoning-actions">
-          <button className="btn btn-secondary">
-            <span>📊</span>
-            Rapports
-          </button>
-          <button className="btn btn-primary">
-            <span>⚙️</span>
-            Configuration
-          </button>
-        </div>
-      </div>
+        {/* Statistiques rapides */}
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <div className="metric-header">
+              <Phone className="metric-icon" />
+              <span className="metric-label">Appels totaux</span>
+            </div>
+            <div className="metric-value">{callStats.totalCalls}</div>
+          </div>
 
-      {/* Statistiques rapides */}
-      <div className="phoning-stats">
-        <div className="stat-card">
-          <div className="stat-icon">📞</div>
-          <div className="stat-content">
-            <div className="stat-value">{callStats.totalCalls}</div>
-            <div className="stat-label">Appels totaux</div>
+          <div className="metric-card">
+            <div className="metric-header">
+              <TrendingUp className="metric-icon" />
+              <span className="metric-label">Décrochés</span>
+            </div>
+            <div className="metric-value">{callStats.answeredCalls}</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-header">
+              <Clock className="metric-icon" />
+              <span className="metric-label">Durée totale</span>
+            </div>
+            <div className="metric-value">{formatDuration(callStats.totalDuration)}</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-header">
+              <Users className="metric-icon" />
+              <span className="metric-label">Aujourd'hui</span>
+            </div>
+            <div className="metric-value">{callStats.todayCalls}</div>
           </div>
         </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">✅</div>
-          <div className="stat-content">
-            <div className="stat-value">{callStats.answeredCalls}</div>
-            <div className="stat-label">Décrochés</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⏱️</div>
-          <div className="stat-content">
-            <div className="stat-value">{formatDuration(callStats.totalDuration)}</div>
-            <div className="stat-label">Durée totale</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">📅</div>
-          <div className="stat-content">
-            <div className="stat-value">{callStats.todayCalls}</div>
-            <div className="stat-label">Aujourd'hui</div>
-          </div>
-        </div>
-      </div>
 
       <div className="phoning-content">
         {/* Section contacts à appeler */}
         <div className="phoning-contacts">
           <div className="section-header">
-            <h2>Contacts à appeler</h2>
+            <h2>Contacts a appeler</h2>
             <div className="contacts-search">
               <input
                 type="text"
@@ -266,28 +234,29 @@ const Phoning = () => {
         </div>
       </div>
 
-      {/* Historique récent en bas */}
-      <div className="phoning-recent-history">
-        <h2>Appels récents</h2>
-        <div className="recent-calls-list">
-          {recentCalls.slice(0, 5).map(call => (
-            <div key={call.id} className="recent-call-item">
-              <div className="call-status">
-                {call.status === 'answered' ? '✅' :
-                 call.status === 'no-answer' ? '❌' :
-                 call.status === 'busy' ? '🔴' : '⏸️'}
+        {/* Historique récent en bas */}
+        <div className="phoning-recent-history">
+          <h2>Appels recents</h2>
+          <div className="recent-calls-list">
+            {recentCalls.slice(0, 5).map(call => (
+              <div key={call.id} className="recent-call-item">
+                <div className="call-status">
+                  {call.status === 'answered' ? '✅' :
+                   call.status === 'no-answer' ? '❌' :
+                   call.status === 'busy' ? '🔴' : '⏸️'}
+                </div>
+                <div className="call-details">
+                  <div className="call-contact">{call.contactName || call.phoneNumber}</div>
+                  <div className="call-time">{new Date(call.createdAt).toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="call-duration">
+                  {call.duration ? formatDuration(call.duration) : '-'}
+                </div>
               </div>
-              <div className="call-details">
-                <div className="call-contact">{call.contactName || call.phoneNumber}</div>
-                <div className="call-time">{new Date(call.createdAt).toLocaleString('fr-FR')}</div>
-              </div>
-              <div className="call-duration">
-                {call.duration ? formatDuration(call.duration) : '-'}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -112,14 +112,8 @@ export const useAuthRedirect = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Rediriger les utilisateurs authentifiés loin des pages publiques
-    if (isAuthenticated && !isLoading) {
-      const publicPaths = ['/login', '/register', '/'];
-
-      if (publicPaths.includes(location.pathname)) {
-        window.location.href = '/dashboard';
-      }
-    }
+    // Ne pas faire de redirection automatique - laisser les composants gérer ça
+    // Ceci évite les boucles de redirection
   }, [isAuthenticated, isLoading, location.pathname]);
 
   return { isAuthenticated, isLoading };

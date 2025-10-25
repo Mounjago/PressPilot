@@ -224,41 +224,29 @@ export const AuthProvider = ({ children }) => {
 
         console.log('📱 Storage check:', { hasToken: !!token, hasUser: !!user });
 
-        if (token && isTokenValid(token)) {
-          // Vérifier le token avec le serveur
-          try {
-            console.log('🌐 Verifying token with server...');
-            const response = await api.get('/api/auth/me');
+        if (token && isTokenValid(token) && user) {
+          // Si nous avons un token valide et des données utilisateur, les utiliser directement
+          console.log('✅ Valid token and user data found in storage');
+          dispatch({
+            type: AUTH_ACTIONS.LOGIN_SUCCESS,
+            payload: { token, user }
+          });
 
-            if (response.data.success) {
-              console.log('✅ Token verification successful');
-              dispatch({
-                type: AUTH_ACTIONS.LOGIN_SUCCESS,
-                payload: {
-                  token,
-                  user: response.data.user
-                }
-              });
-
-              // Mettre à jour les données utilisateur en localStorage
-              storage.setUser(response.data.user);
-            } else {
-              throw new Error('Token invalide');
-            }
-          } catch (error) {
-            console.warn('⚠️ Server verification failed, working offline mode:', error.message);
-            // En mode offline, on garde les données locales si valides
-            if (user) {
-              dispatch({
-                type: AUTH_ACTIONS.LOGIN_SUCCESS,
-                payload: { token, user }
-              });
-              console.log('💾 Using cached user data');
-            } else {
-              storage.clear();
-              dispatch({ type: AUTH_ACTIONS.LOGOUT });
-            }
-          }
+          // Optionnellement, vérifier avec le serveur en arrière-plan (sans bloquer)
+          api.get('/api/auth/me')
+            .then(response => {
+              if (response.data.success) {
+                console.log('✅ Background token verification successful');
+                storage.setUser(response.data.user);
+                dispatch({
+                  type: AUTH_ACTIONS.UPDATE_PROFILE,
+                  payload: { user: response.data.user }
+                });
+              }
+            })
+            .catch(error => {
+              console.warn('⚠️ Background verification failed, continuing with cached data:', error.message);
+            });
         } else {
           // Token invalide ou inexistant
           console.log('🚫 No valid token found');
@@ -505,13 +493,8 @@ export const useAuth = () => {
 export const useAuthRequired = () => {
   const auth = useAuth();
 
-  useEffect(() => {
-    if (!auth.isLoading && !auth.isAuthenticated) {
-      // Rediriger vers la page de connexion si non authentifié
-      window.location.href = '/login';
-    }
-  }, [auth.isLoading, auth.isAuthenticated]);
-
+  // Note: La redirection est gérée par ProtectedRoute
+  // Ce hook retourne simplement l'état d'auth
   return auth;
 };
 

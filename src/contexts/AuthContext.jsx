@@ -232,9 +232,7 @@ export const AuthProvider = ({ children }) => {
             payload: { token, user }
           });
 
-          // Désactiver temporairement la vérification serveur pour éviter les loops
-          // TODO: Réactiver quand le backend sera stable
-          /*
+          // Vérification du token côté serveur
           api.get('/api/auth/me')
             .then(response => {
               if (response.data.success) {
@@ -248,8 +246,13 @@ export const AuthProvider = ({ children }) => {
             })
             .catch(error => {
               console.warn('⚠️ Background verification failed, continuing with cached data:', error.message);
+              // Si le token est invalide côté serveur, déconnecter l'utilisateur
+              if (error.response?.status === 401) {
+                console.log('🚫 Token invalid on server, logging out');
+                storage.clear();
+                dispatch({ type: AUTH_ACTIONS.LOGOUT });
+              }
             });
-          */
         } else {
           // Token invalide ou inexistant
           console.log('🚫 No valid token found');

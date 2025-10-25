@@ -1,7 +1,7 @@
 {
   "name": "presspilot-frontend",
-  "version": "1.0.0",
-  "description": "Frontend de PressPilot by Bandstream",
+  "version": "1.0.1",
+  "description": "Frontend de PressPilot by Bandstream - v1.0.1 with all Oct 25 optimizations",
   "private": true,
   "scripts": {
     "dev": "vite",

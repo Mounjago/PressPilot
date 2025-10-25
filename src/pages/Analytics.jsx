@@ -46,19 +46,19 @@ const Analytics = () => {
 
   return (
     <Layout title="ANALYTICS" subtitle="Analysez vos performances et optimisez vos campagnes">
-      {/* Sélecteur de période */}
-      <div className="time-range-selector">
-            <select
-              value={selectedTimeRange}
-              onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="form-select w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="7d">7 derniers jours</option>
-              <option value="30d">30 derniers jours</option>
-              <option value="90d">3 derniers mois</option>
-              <option value="1y">1 an</option>
-            </select>
-          </div>
+      <div className="analytics-container">
+        {/* Sélecteur de période */}
+        <div className="time-range-selector">
+          <select
+            value={selectedTimeRange}
+            onChange={(e) => setSelectedTimeRange(e.target.value)}
+            className="form-select w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          >
+            <option value="7d">7 derniers jours</option>
+            <option value="30d">30 derniers jours</option>
+            <option value="90d">3 derniers mois</option>
+            <option value="1y">1 an</option>
+          </select>
         </div>
 
         {/* Métriques principales */}
@@ -333,6 +333,7 @@ const Analytics = () => {
             </div>
           </div>
         </div>
+      </div>
     </Layout>
   );
 };

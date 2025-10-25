@@ -8,7 +8,7 @@ import logo from "../assets/logo-bandstream.png";
 
 // Composants
 import ContactsImporter from "../components/CSVImporter";
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 import ContactCard from "../components/phone/ContactCard";
 import PhoneSystem from "../components/phone/PhoneSystem";
 import CallHistory from "../components/phone/CallHistory";
@@ -148,15 +148,8 @@ const Contacts = () => {
   }
 
   return (
-    <div className="dashboard">
-      <Sidebar />
-
-      <main className="main-content">
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">CONTACTS</h1>
-          <p className="dashboard-subtitle">Gestion de vos contacts presse et médias</p>
-
-          <div className="contacts-actions">
+    <Layout title="CONTACTS" subtitle="Gestion de vos contacts presse et médias">
+      <div className="contacts-actions">
             <button
               className="btn-secondary"
               onClick={() => setShowImporter(true)}
@@ -176,7 +169,6 @@ const Contacts = () => {
               Nouveau contact
             </button>
           </div>
-        </div>
 
         {/* Barre de recherche et filtres */}
         <section className="contacts-filters">
@@ -328,8 +320,7 @@ const Contacts = () => {
             />
           )}
         </AnimatePresence>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, User, Lock, Bell, Mail, Globe, Palette, Database } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import '../styles/Dashboard.css';
 
 const Settings = () => {

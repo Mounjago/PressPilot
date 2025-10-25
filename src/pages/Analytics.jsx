@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, TrendingUp, TrendingDown, Users, Mail, Phone, Calendar, Target, Menu, X } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+import { BarChart, TrendingUp, TrendingDown, Users, Mail, Phone, Calendar, Target } from 'lucide-react';
+import Layout from '../components/Layout';
 import '../styles/Dashboard.css';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [metrics, setMetrics] = useState({
     totalCampaigns: 0,
@@ -39,46 +38,16 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="dashboard min-h-screen bg-gray-50">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="main-content ml-0 md:ml-64 p-4 md:p-6">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">Analytics</h1>
-            <div className="loading-spinner"></div>
-          </div>
-        </main>
-      </div>
+      <Layout title="Analytics">
+        <div className="loading-spinner"></div>
+      </Layout>
     );
   }
 
   return (
-    <div className="dashboard min-h-screen bg-gray-50">
-      {/* Mobile header */}
-      <header className="dashboard-header md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Toggle menu"
-          >
-            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900 truncate">Analytics</h1>
-          <div className="w-10"></div> {/* Spacer for centering */}
-        </div>
-      </header>
-
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <main className="main-content ml-0 md:ml-64 pt-16 md:pt-0 p-4 md:p-6 min-h-screen">
-        <div className="dashboard-header mb-6">
-          <div className="hidden md:block">
-            <h1 className="dashboard-title text-2xl md:text-3xl font-bold text-gray-900 mb-2">ANALYTICS</h1>
-            <p className="dashboard-subtitle text-gray-600 mb-4">Analysez vos performances et optimisez vos campagnes</p>
-          </div>
-
-          {/* Sélecteur de période */}
-          <div className="time-range-selector">
+    <Layout title="ANALYTICS" subtitle="Analysez vos performances et optimisez vos campagnes">
+      {/* Sélecteur de période */}
+      <div className="time-range-selector">
             <select
               value={selectedTimeRange}
               onChange={(e) => setSelectedTimeRange(e.target.value)}
@@ -364,8 +333,7 @@ const Analytics = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

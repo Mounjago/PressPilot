@@ -10,7 +10,7 @@ import logo from "../assets/logo-bandstream.png";
 // Composants réactivés
 import CampaignList from "../components/CampaignList";
 import CampaignListAdvanced from "../components/CampaignListAdvanced";
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 import RichTextEditor from "../components/RichTextEditor";
 import TemplateSelector from "../components/TemplateSelector";
 import VariableManager from "../components/VariableManager";
@@ -526,23 +526,18 @@ const Campaigns = () => {
   }
 
   return (
-    <div className="dashboard">
-      <Sidebar />
-
-      <main className="main-content">
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">CAMPAGNES</h1>
-          <p className="dashboard-subtitle">
-            {(artist && project) ? `${project.name} • ${artist.name}` : 'Gestion des campagnes de presse'}
-          </p>
-
-          <button
-            className="btn-primary"
-            onClick={() => setShowCreateForm(true)}
-          >
-            + Nouvelle campagne
-          </button>
-        </div>
+    <Layout
+      title="CAMPAGNES"
+      subtitle={(artist && project) ? `${project.name} • ${artist.name}` : 'Gestion des campagnes de presse'}
+    >
+      <div className="campaign-header-actions">
+        <button
+          className="btn-primary"
+          onClick={() => setShowCreateForm(true)}
+        >
+          + Nouvelle campagne
+        </button>
+      </div>
 
         {(artist && project) && (
           <div className="breadcrumb">
@@ -884,8 +879,7 @@ const Campaigns = () => {
         <section className="dashboard-section">
           <CampaignListAdvanced artistId={artistId} projectId={projectId} />
         </section>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

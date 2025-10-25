@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Clock, Users, TrendingUp } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import '../styles/Dashboard.css';
 import PhoneSystem from '../components/phone/PhoneSystem';
 import CallHistory from '../components/phone/CallHistory';
@@ -71,32 +71,18 @@ const Phoning = () => {
 
   if (loading) {
     return (
-      <div className="dashboard">
-        <Sidebar />
-        <main className="main-content">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">PHONING</h1>
-            <div className="loading-spinner"></div>
-          </div>
-        </main>
-      </div>
+      <Layout title="PHONING">
+        <div className="loading-spinner"></div>
+      </Layout>
     );
   }
 
   return (
-    <div className="dashboard">
-      <Sidebar />
-
-      <main className="main-content">
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">PHONING</h1>
-          <p className="dashboard-subtitle">Centre d'appels et gestion des contacts</p>
-
-          <div className="phoning-status online">
-            <span className="status-indicator"></span>
-            En ligne
-          </div>
-        </div>
+    <Layout title="PHONING" subtitle="Centre d'appels et gestion des contacts">
+      <div className="phoning-status online">
+        <span className="status-indicator"></span>
+        En ligne
+      </div>
 
         {/* Statistiques rapides */}
         <div className="metrics-grid">
@@ -256,8 +242,7 @@ const Phoning = () => {
             ))}
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

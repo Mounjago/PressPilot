@@ -7,4 +7,7 @@ export default defineConfig({
     outDir: 'dist',
   },
   publicDir: 'public', // <= IMPORTANT !
+  preview: {
+    allowedHosts: ['presspilot.up.railway.app'],
+  },
 });

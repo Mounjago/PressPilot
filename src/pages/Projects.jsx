@@ -63,14 +63,21 @@ const Projects = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+      // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
+      const response = await fetch('http://localhost:3535/odesli/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url: spotifyUrl }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
       }
 
       const data = await response.json();
@@ -214,11 +221,13 @@ const Projects = () => {
   };
 
   const handleEditProject = (project) => {
+    console.log('🔧 Edit button clicked for project:', project);
     setEditingProject({
       ...project,
       spotifyUrl: project.spotifyUrl || "",
       isLoadingLinks: false
     });
+    console.log('🔧 Setting showEditForm to true');
     setShowEditForm(true);
   };
 
@@ -249,14 +258,21 @@ const Projects = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+      // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
+      const response = await fetch('http://localhost:3535/odesli/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url: spotifyUrl }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
       }
 
       const data = await response.json();
@@ -501,7 +517,7 @@ const Projects = () => {
             </section>
           )}
 
-          {showEditForm && editingProject && (
+          {console.log('🔧 Render check - showEditForm:', showEditForm, 'editingProject:', editingProject) || (showEditForm && editingProject) && (
             <section className="dashboard-section">
               <div className="campaigns-section">
                 <div className="section-header">

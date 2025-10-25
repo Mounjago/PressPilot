@@ -3,6 +3,7 @@ import { BarChart, TrendingUp, TrendingDown, Users, Mail, Phone, Calendar, Targe
 import Layout from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/Dashboard.css';
+import '../styles/Analytics.css';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,13 @@ const Analytics = () => {
 
   useEffect(() => {
     loadInitialData();
+
+    // Vérifier les paramètres URL pour pré-sélectionner un projet
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    if (projectParam) {
+      setSelectedProject(projectParam);
+    }
   }, []);
 
   useEffect(() => {
@@ -66,25 +74,24 @@ const Analytics = () => {
 
   const loadInitialData = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      // Charger les artistes depuis localStorage
+      const savedArtists = JSON.parse(localStorage.getItem('presspilot-artists') || '[]');
+      setArtists(savedArtists.map(artist => artist.name).sort());
 
-      // Load projects to get artists list
-      const projectsResponse = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (projectsResponse.ok) {
-        const projectsData = await projectsResponse.json();
-        setProjects(projectsData);
-
-        // Extract unique artists
-        const uniqueArtists = [...new Set(projectsData.map(p => p.artist))].sort();
-        setArtists(uniqueArtists);
-        setFilteredProjects(projectsData);
+      // Charger tous les projets depuis localStorage
+      let allProjects = [];
+      for (const artist of savedArtists) {
+        const artistProjects = JSON.parse(localStorage.getItem(`presspilot-projects-${artist.id}`) || '[]');
+        const enrichedProjects = artistProjects.map(project => ({
+          ...project,
+          artist: artist.name,
+          artistId: artist.id
+        }));
+        allProjects = [...allProjects, ...enrichedProjects];
       }
+
+      setProjects(allProjects);
+      setFilteredProjects(allProjects);
     } catch (error) {
       console.error('Erreur lors du chargement des données initiales:', error);
     }
@@ -93,112 +100,130 @@ const Analytics = () => {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
 
-      // Build filters
-      const filters = {
-        startDate: getStartDate(),
-        endDate: new Date().toISOString().split('T')[0]
-      };
+      // Charger toutes les sessions depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
 
+      // Filtrer par dates
+      const startDate = new Date(getStartDate());
+      const endDate = new Date();
+      const filteredSessions = allSessions.filter(session => {
+        const sessionDate = new Date(session.createdAt);
+        return sessionDate >= startDate && sessionDate <= endDate;
+      });
+
+      // Filtrer par projet si sélectionné
+      let projectFilteredSessions = filteredSessions;
       if (selectedProject !== 'all') {
-        filters.projectId = selectedProject;
+        projectFilteredSessions = filteredSessions.filter(session => session.projectId === selectedProject);
+      } else if (selectedArtist !== 'all') {
+        const artistProjects = filteredProjects.filter(p => p.artist === selectedArtist).map(p => p._id);
+        projectFilteredSessions = filteredSessions.filter(session => artistProjects.includes(session.projectId));
       }
 
-      // Load call analytics
-      const callParams = new URLSearchParams(filters).toString();
-      const callResponse = await fetch(`/api/call-sessions/analytics/calls?${callParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Calculer les métriques d'appels
+      const callMetrics = projectFilteredSessions.reduce((acc, session) => {
+        const totalCalls = session.stats?.totalCalls || 0;
+        const answeredCalls = session.stats?.answeredCalls || 0;
+        const duration = session.stats?.totalDuration || 0;
+
+        return {
+          totalSessions: acc.totalSessions + 1,
+          totalCalls: acc.totalCalls + totalCalls,
+          answeredCalls: acc.answeredCalls + answeredCalls,
+          totalDuration: acc.totalDuration + duration,
+          successfulCalls: acc.successfulCalls + (session.callLogs?.filter(call => call.outcome === 'interested').length || 0)
+        };
+      }, { totalSessions: 0, totalCalls: 0, answeredCalls: 0, totalDuration: 0, successfulCalls: 0 });
+
+      // Analyser les appels par projet
+      const projectCallAnalytics = [];
+      const projectGroups = {};
+
+      projectFilteredSessions.forEach(session => {
+        if (!projectGroups[session.projectId]) {
+          projectGroups[session.projectId] = {
+            projectId: session.projectId,
+            projectName: session.projectName,
+            artistName: session.artistName,
+            sessions: []
+          };
         }
+        projectGroups[session.projectId].sessions.push(session);
       });
 
-      if (callResponse.ok) {
-        const callData = await callResponse.json();
-        setCallAnalytics(callData);
-      }
+      Object.values(projectGroups).forEach(group => {
+        const totalCalls = group.sessions.reduce((sum, s) => sum + (s.stats?.totalCalls || 0), 0);
+        const answeredCalls = group.sessions.reduce((sum, s) => sum + (s.stats?.answeredCalls || 0), 0);
+        const successfulCalls = group.sessions.reduce((sum, s) => sum + (s.callLogs?.filter(call => call.outcome === 'interested').length || 0), 0);
+        const totalDuration = group.sessions.reduce((sum, s) => sum + (s.stats?.totalDuration || 0), 0);
 
-      // Load call session stats
-      const statsResponse = await fetch(`/api/call-sessions/stats/overview?${selectedProject !== 'all' ? `projectId=${selectedProject}` : ''}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        const uniqueContacts = new Set();
+        group.sessions.forEach(session => {
+          session.callLogs?.forEach(call => {
+            uniqueContacts.add(call.contactId);
+          });
+        });
+
+        projectCallAnalytics.push({
+          ...group,
+          totalCalls,
+          answeredCalls,
+          successfulCalls,
+          avgDuration: totalCalls > 0 ? totalDuration / totalCalls : 0,
+          successRate: totalCalls > 0 ? answeredCalls / totalCalls : 0,
+          uniqueContactsCount: uniqueContacts.size
+        });
       });
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
+      setCallAnalytics(projectCallAnalytics);
 
-        // Update metrics with call data
-        setMetrics(prev => ({
-          ...prev,
-          totalSessions: statsData.totalSessions || 0,
-          totalCalls: statsData.totalCalls || 0,
-          answeredCalls: statsData.totalAnswered || 0,
-          successfulCalls: statsData.totalSuccessful || 0,
-          avgSuccessRate: statsData.avgSuccessRate || 0,
-          // Calculate combined metrics
-          responseRate: statsData.totalCalls > 0 ? Math.round((statsData.totalAnswered / statsData.totalCalls) * 100) : 0
-        }));
+      // Charger les contacts depuis localStorage pour les métriques
+      const savedContacts = JSON.parse(localStorage.getItem('presspilot-contacts') || '[]');
+      const uniqueMedias = new Set(savedContacts.map(c => c.journalism?.mediaName).filter(Boolean)).size;
+
+      // Charger les campagnes email depuis localStorage (si elles existent)
+      const savedCampaigns = JSON.parse(localStorage.getItem('presspilot-campaigns') || '[]');
+
+      // Filtrer les campagnes par projet si nécessaire
+      let filteredCampaigns = savedCampaigns;
+      if (selectedProject !== 'all') {
+        filteredCampaigns = savedCampaigns.filter(c => c.projectId === selectedProject);
+      } else if (selectedArtist !== 'all') {
+        const artistProjects = filteredProjects.filter(p => p.artist === selectedArtist).map(p => p._id);
+        filteredCampaigns = savedCampaigns.filter(c => artistProjects.includes(c.projectId));
       }
 
-      // Load campaign analytics (existing email data)
-      const campaignResponse = await fetch('/api/campaigns', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      // Calculer les métriques email
+      const emailMetrics = filteredCampaigns.reduce((acc, campaign) => ({
+        totalCampaigns: acc.totalCampaigns + 1,
+        emailsSent: acc.emailsSent + (campaign.stats?.emailsSent || 0),
+        emailsOpened: acc.emailsOpened + (campaign.stats?.emailsOpened || 0),
+        emailsReplied: acc.emailsReplied + (campaign.stats?.emailsReplied || 0)
+      }), { totalCampaigns: 0, emailsSent: 0, emailsOpened: 0, emailsReplied: 0 });
+
+      setEmailAnalytics(filteredCampaigns);
+
+      // Mettre à jour toutes les métriques
+      setMetrics({
+        // Email metrics
+        ...emailMetrics,
+        avgOpenRate: emailMetrics.emailsSent > 0 ? Math.round((emailMetrics.emailsOpened / emailMetrics.emailsSent) * 100) : 0,
+        avgReplyRate: emailMetrics.emailsSent > 0 ? Math.round((emailMetrics.emailsReplied / emailMetrics.emailsSent) * 100) : 0,
+
+        // Call metrics
+        ...callMetrics,
+        avgCallDuration: callMetrics.totalCalls > 0 ? callMetrics.totalDuration / callMetrics.totalCalls : 0,
+        avgSuccessRate: callMetrics.totalCalls > 0 ? callMetrics.answeredCalls / callMetrics.totalCalls : 0,
+
+        // Contact metrics
+        totalContacts: savedContacts.length,
+        uniqueMedias,
+
+        // Combined metrics
+        responseRate: callMetrics.totalCalls > 0 ? Math.round((callMetrics.answeredCalls / callMetrics.totalCalls) * 100) : 0,
+        conversionRate: callMetrics.totalCalls > 0 ? Math.round((callMetrics.successfulCalls / callMetrics.totalCalls) * 100) : 0
       });
-
-      if (campaignResponse.ok) {
-        const campaigns = await campaignResponse.json();
-
-        // Filter campaigns by project if selected
-        let filteredCampaigns = campaigns;
-        if (selectedProject !== 'all') {
-          filteredCampaigns = campaigns.filter(c => c.projectId === selectedProject);
-        } else if (selectedArtist !== 'all') {
-          const artistProjects = filteredProjects.map(p => p._id);
-          filteredCampaigns = campaigns.filter(c => artistProjects.includes(c.projectId));
-        }
-
-        // Calculate email metrics
-        const emailMetrics = filteredCampaigns.reduce((acc, campaign) => ({
-          totalCampaigns: acc.totalCampaigns + 1,
-          emailsSent: acc.emailsSent + (campaign.stats?.emailsSent || 0),
-          emailsOpened: acc.emailsOpened + (campaign.stats?.emailsOpened || 0),
-          emailsReplied: acc.emailsReplied + (campaign.stats?.emailsReplied || 0)
-        }), { totalCampaigns: 0, emailsSent: 0, emailsOpened: 0, emailsReplied: 0 });
-
-        setMetrics(prev => ({
-          ...prev,
-          ...emailMetrics,
-          avgOpenRate: emailMetrics.emailsSent > 0 ? Math.round((emailMetrics.emailsOpened / emailMetrics.emailsSent) * 100) : 0,
-          avgReplyRate: emailMetrics.emailsSent > 0 ? Math.round((emailMetrics.emailsReplied / emailMetrics.emailsSent) * 100) : 0
-        }));
-
-        setEmailAnalytics(filteredCampaigns);
-      }
-
-      // Load contact analytics
-      const contactResponse = await fetch('/api/contacts', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (contactResponse.ok) {
-        const contacts = await contactResponse.json();
-        const uniqueMedias = new Set(contacts.map(c => c.journalism?.mediaName).filter(Boolean)).size;
-
-        setMetrics(prev => ({
-          ...prev,
-          totalContacts: contacts.length,
-          uniqueMedias
-        }));
-      }
 
     } catch (error) {
       console.error('Erreur chargement analytics:', error);
@@ -231,37 +256,144 @@ const Analytics = () => {
 
   const exportData = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const filters = {
-        startDate: getStartDate(),
-        endDate: new Date().toISOString().split('T')[0]
-      };
+      // Générer un rapport complet basé sur localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      const allContacts = JSON.parse(localStorage.getItem('presspilot-contacts') || '[]');
+      const allCampaigns = JSON.parse(localStorage.getItem('presspilot-campaigns') || '[]');
+
+      // Filtrer par projet si sélectionné
+      let targetProject = null;
+      let reportTitle = 'Rapport Analytics Global';
+      let filteredSessions = allSessions;
+      let filteredCampaigns = allCampaigns;
 
       if (selectedProject !== 'all') {
-        filters.projectId = selectedProject;
+        targetProject = projects.find(p => p._id === selectedProject);
+        filteredSessions = allSessions.filter(s => s.projectId === selectedProject);
+        filteredCampaigns = allCampaigns.filter(c => c.projectId === selectedProject);
+        reportTitle = `Rapport de Projet: ${targetProject?.name || 'Projet inconnu'}`;
+      } else if (selectedArtist !== 'all') {
+        const artistProjects = filteredProjects.filter(p => p.artist === selectedArtist).map(p => p._id);
+        filteredSessions = allSessions.filter(s => artistProjects.includes(s.projectId));
+        filteredCampaigns = allCampaigns.filter(c => artistProjects.includes(c.projectId));
+        reportTitle = `Rapport Artiste: ${selectedArtist}`;
       }
 
-      // This would generate and download a report
-      const reportResponse = await fetch(`/api/project-reports/quick-generate/${selectedProject}?reportType=full`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Créer le rapport consolidé
+      const report = {
+        titre: reportTitle,
+        periode: {
+          debut: getStartDate(),
+          fin: new Date().toISOString().split('T')[0]
+        },
+        artiste: selectedArtist !== 'all' ? selectedArtist : 'Tous les artistes',
+        projet: targetProject ? {
+          nom: targetProject.name,
+          type: targetProject.type,
+          genre: targetProject.genre,
+          sortie: targetProject.releaseDate,
+          statut: targetProject.status
+        } : null,
+
+        // Métriques consolidées
+        metriques: {
+          appels: {
+            totalSessions: filteredSessions.length,
+            totalAppels: filteredSessions.reduce((sum, s) => sum + (s.stats?.totalCalls || 0), 0),
+            reponsesObtenues: filteredSessions.reduce((sum, s) => sum + (s.stats?.answeredCalls || 0), 0),
+            dureeTotal: filteredSessions.reduce((sum, s) => sum + (s.stats?.totalDuration || 0), 0),
+            tauxReponse: metrics.responseRate
+          },
+          emails: {
+            totalCampagnes: filteredCampaigns.length,
+            emailsEnvoyes: filteredCampaigns.reduce((sum, c) => sum + (c.stats?.emailsSent || 0), 0),
+            ouvertures: filteredCampaigns.reduce((sum, c) => sum + (c.stats?.emailsOpened || 0), 0),
+            reponses: filteredCampaigns.reduce((sum, c) => sum + (c.stats?.emailsReplied || 0), 0),
+            tauxOuverture: metrics.avgOpenRate
+          },
+          contacts: {
+            total: allContacts.length,
+            mediasUniques: metrics.uniqueMedias
+          }
+        },
+
+        // Détail des sessions d'appels
+        detailAppels: filteredSessions.map(session => ({
+          nom: session.sessionName,
+          dateCreation: session.createdAt,
+          statut: session.status,
+          appels: session.callLogs?.map(call => ({
+            contact: call.contactName,
+            media: call.contactId?.journalism?.mediaName || 'Non renseigné',
+            statut: call.status,
+            duree: call.duration,
+            resultat: call.outcome,
+            commentaires: call.comments,
+            feedbackJournaliste: call.journalistFeedback
+          })) || []
+        })),
+
+        // Détail des campagnes email
+        detailEmails: filteredCampaigns.map(campaign => ({
+          nom: campaign.name,
+          sujet: campaign.subject,
+          dateEnvoi: campaign.sentAt,
+          statut: campaign.status,
+          statistiques: campaign.stats || {},
+          tauxOuverture: campaign.openRate || 0
+        })),
+
+        // Médias contactés
+        mediasContactes: [...new Set(
+          filteredSessions.flatMap(session =>
+            session.callLogs?.map(call => call.contactId?.journalism?.mediaName).filter(Boolean) || []
+          )
+        )].sort(),
+
+        // Résumé des résultats par média
+        resultatParMedia: {},
+
+        // Généré le
+        dateGeneration: new Date().toISOString(),
+        filtres: {
+          periode: selectedTimeRange,
+          artiste: selectedArtist,
+          projet: selectedProject
         }
+      };
+
+      // Calculer les résultats par média
+      const mediaResults = {};
+      filteredSessions.forEach(session => {
+        session.callLogs?.forEach(call => {
+          const mediaName = call.contactId?.journalism?.mediaName || 'Non renseigné';
+          if (!mediaResults[mediaName]) {
+            mediaResults[mediaName] = {
+              appels: 0,
+              reponses: 0,
+              interesses: 0,
+              commentaires: []
+            };
+          }
+          mediaResults[mediaName].appels++;
+          if (call.status === 'answered') mediaResults[mediaName].reponses++;
+          if (call.outcome === 'interested') mediaResults[mediaName].interesses++;
+          if (call.comments) mediaResults[mediaName].commentaires.push(call.comments);
+        });
       });
+      report.resultatParMedia = mediaResults;
 
-      if (reportResponse.ok) {
-        const reportData = await reportResponse.json();
+      // Créer et télécharger le rapport
+      const reportStr = JSON.stringify(report, null, 2);
+      const dataBlob = new Blob([reportStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rapport-analytics-${selectedProject !== 'all' ? selectedProject : 'tous-projets'}-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
 
-        // Create and download CSV or PDF
-        const dataStr = JSON.stringify(reportData.report, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `analytics-report-${selectedProject !== 'all' ? selectedProject : 'all-projects'}-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
+      alert('Rapport téléchargé avec succès !');
     } catch (error) {
       console.error('Erreur lors de l\'export:', error);
       alert('Erreur lors de l\'export des données');
@@ -281,70 +413,68 @@ const Analytics = () => {
       <div className="analytics-container">
         {/* Filters and controls */}
         <div className="analytics-controls">
-          <div className="controls-row">
-            <div className="filters-section">
-              <div className="filter-group">
-                <label>Période :</label>
-                <select
-                  value={selectedTimeRange}
-                  onChange={(e) => setSelectedTimeRange(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="7d">7 derniers jours</option>
-                  <option value="30d">30 derniers jours</option>
-                  <option value="90d">3 derniers mois</option>
-                  <option value="1y">1 an</option>
-                </select>
-              </div>
-
-              <div className="filter-group">
-                <label>Artiste :</label>
-                <select
-                  value={selectedArtist}
-                  onChange={(e) => setSelectedArtist(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">Tous les artistes</option>
-                  {artists.map(artist => (
-                    <option key={artist} value={artist}>{artist}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="filter-group">
-                <label>Projet :</label>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className="filter-select"
-                  disabled={filteredProjects.length === 0}
-                >
-                  <option value="all">Tous les projets</option>
-                  {filteredProjects.map(project => (
-                    <option key={project._id} value={project._id}>
-                      {project.name} ({project.type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="filter-group">
-                <label>Vue :</label>
-                <select
-                  value={analyticsType}
-                  onChange={(e) => setAnalyticsType(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="overview">Vue d'ensemble</option>
-                  <option value="calls">Appels détaillés</option>
-                  <option value="emails">Emails détaillés</option>
-                  <option value="projects">Par projet</option>
-                </select>
-              </div>
+          <div className="filters-grid">
+            <div className="filter-item">
+              <label className="filter-label">Période</label>
+              <select
+                value={selectedTimeRange}
+                onChange={(e) => setSelectedTimeRange(e.target.value)}
+                className="filter-select"
+              >
+                <option value="7d">7 derniers jours</option>
+                <option value="30d">30 derniers jours</option>
+                <option value="90d">3 derniers mois</option>
+                <option value="1y">1 an</option>
+              </select>
             </div>
 
-            <div className="actions-section">
-              <button className="btn-secondary" onClick={exportData}>
+            <div className="filter-item">
+              <label className="filter-label">Artiste</label>
+              <select
+                value={selectedArtist}
+                onChange={(e) => setSelectedArtist(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">Tous les artistes</option>
+                {artists.map(artist => (
+                  <option key={artist} value={artist}>{artist}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-item">
+              <label className="filter-label">Projet</label>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="filter-select"
+                disabled={filteredProjects.length === 0}
+              >
+                <option value="all">Tous les projets</option>
+                {filteredProjects.map(project => (
+                  <option key={project._id} value={project._id}>
+                    {project.name} ({project.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-item">
+              <label className="filter-label">Vue</label>
+              <select
+                value={analyticsType}
+                onChange={(e) => setAnalyticsType(e.target.value)}
+                className="filter-select"
+              >
+                <option value="overview">Vue d'ensemble</option>
+                <option value="calls">Appels détaillés</option>
+                <option value="emails">Emails détaillés</option>
+                <option value="projects">Par projet</option>
+              </select>
+            </div>
+
+            <div className="filter-item actions-item">
+              <button className="btn-export" onClick={exportData}>
                 <Download size={16} />
                 Exporter
               </button>

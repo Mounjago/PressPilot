@@ -1,877 +1,1003 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import api, { useMutation } from "../hooks/useApi";
-import { contactsApi } from "../api";
+import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import "../styles/Templates.css";
-import logo from "../assets/logo-bandstream.png";
-
-// Composants réactivés
-import CampaignList from "../components/CampaignList";
-import CampaignListAdvanced from "../components/CampaignListAdvanced";
 import Layout from "../components/Layout";
-import RichTextEditor from "../components/RichTextEditor";
-import TemplateSelector from "../components/TemplateSelector";
-import VariableManager from "../components/VariableManager";
-import TemplateBrandingManager from "../components/TemplateBrandingManager";
-import TemplatePreview from "../components/TemplatePreview";
 
 const Campaigns = () => {
-  const { artistId, projectId } = useParams();
   const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [artist, setArtist] = useState(null);
-  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("tous"); // tous, traites, a_traiter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
 
-  // Configuration API - Utilise l'instance api configurée avec auth automatique
-  const { mutate } = useMutation();
+  // État des messages de réponse
+  const [responseMessages, setResponseMessages] = useState([]);
 
-  // Charger les données artiste et projet depuis l'API
+  // Charger les données
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
+        // Simuler le chargement des données
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // ÉTAPE 1: Priorité localStorage (données locales créées)
-        console.log('🔍 Recherche dans localStorage...', { artistId, projectId });
-        const savedArtists = localStorage.getItem('presspilot-artists');
-        const savedProjects = localStorage.getItem(`presspilot-projects-${artistId}`);
-
-        let artistFromLocal = null;
-        let projectFromLocal = null;
-
-        if (savedArtists) {
-          const artists = JSON.parse(savedArtists);
-          artistFromLocal = artists.find(a => a.id.toString() === artistId);
-        }
-
-        if (savedProjects) {
-          const projects = JSON.parse(savedProjects);
-          projectFromLocal = projects.find(p => p.id.toString() === projectId);
-        }
-
-        // Si les données sont disponibles en local, les utiliser DIRECTEMENT
-        if (artistFromLocal && projectFromLocal) {
-          setArtist({
-            _id: artistFromLocal.id,
-            name: artistFromLocal.name,
-            email: artistFromLocal.email,
-            genre: artistFromLocal.genre,
-            avatar: artistFromLocal.avatar
-          });
-
-          setProject({
-            _id: projectFromLocal.id,
-            name: projectFromLocal.name,
-            type: projectFromLocal.type,
-            status: projectFromLocal.status,
-            cover: projectFromLocal.cover
-          });
-
-          console.log('✅ Données chargées depuis localStorage');
-          console.log('✅ Artist:', artistFromLocal.name);
-          console.log('✅ Project:', projectFromLocal.name);
-          return; // EXIT EARLY - Pas besoin d'API
-        }
-
-        // ÉTAPE 2: Si données manquantes, fallback API
-        console.log('⚡ Données manquantes en local, tentative API...');
-
-        const requests = [];
-        if (!artistFromLocal) {
-          requests.push(api.get(`/artists/${artistId}`).catch(() => null));
-        }
-        if (!projectFromLocal) {
-          requests.push(api.get(`/projects/${projectId}`).catch(() => null));
-        }
-
-        const responses = await Promise.all(requests);
-        let responseIndex = 0;
-
-        if (!artistFromLocal && responses[responseIndex]) {
-          const artistResponse = responses[responseIndex];
-          if (artistResponse?.data?.success) {
-            setArtist(artistResponse.data.data);
-            console.log('✅ Artist loaded via API');
-          }
-          responseIndex++;
-        } else if (artistFromLocal) {
-          setArtist({
-            _id: artistFromLocal.id,
-            name: artistFromLocal.name,
-            email: artistFromLocal.email,
-            genre: artistFromLocal.genre,
-            avatar: artistFromLocal.avatar
-          });
-        }
-
-        if (!projectFromLocal && responses[responseIndex]) {
-          const projectResponse = responses[responseIndex];
-          if (projectResponse?.data?.success) {
-            setProject(projectResponse.data.data);
-            console.log('✅ Project loaded via API');
-          }
-        } else if (projectFromLocal) {
-          setProject({
-            _id: projectFromLocal.id,
-            name: projectFromLocal.name,
-            type: projectFromLocal.type,
-            status: projectFromLocal.status,
-            cover: projectFromLocal.cover
-          });
-        }
+        // En production, ici vous feriez appel à votre API pour récupérer les messages
+        // const response = await api.get('/campaign-responses');
+        // setResponseMessages(response.data);
 
       } catch (error) {
-        console.error('Erreur chargement prioritaire:', error);
-
-        try {
-          // Fallback : charger le premier artist et project disponibles
-          console.log('Tentative de fallback vers le premier artist/project disponible...');
-
-          const [allArtistsResponse, allProjectsResponse] = await Promise.all([
-            api.get(`/artists`),
-            api.get(`/projects`)
-          ]);
-
-          if (allArtistsResponse.data.success && allArtistsResponse.data.data.length > 0) {
-            const firstArtist = allArtistsResponse.data.data[0];
-            setArtist(firstArtist);
-            console.log('✅ Artist fallback loaded:', firstArtist.name);
-          }
-
-          if (allProjectsResponse.data.success && allProjectsResponse.data.data.length > 0) {
-            const firstProject = allProjectsResponse.data.data[0];
-            setProject(firstProject);
-            console.log('✅ Project fallback loaded:', firstProject.name);
-          }
-
-        } catch (fallbackError) {
-          console.error('Erreur fallback API:', fallbackError);
-
-          // PRIORITY FALLBACK: localStorage (données existantes)
-          console.log('🔄 Fallback vers localStorage...');
-          const savedArtists = localStorage.getItem('presspilot-artists');
-          const savedProjects = localStorage.getItem(`presspilot-projects-${artistId}`);
-
-          if (savedArtists) {
-            const artists = JSON.parse(savedArtists);
-            const foundArtist = artists.find(a => a.id.toString() === artistId);
-            if (foundArtist) {
-              // Convertir format localStorage vers API
-              setArtist({
-                _id: foundArtist.id,
-                name: foundArtist.name,
-                email: foundArtist.email,
-                genre: foundArtist.genre,
-                avatar: foundArtist.avatar
-              });
-              console.log('✅ Artist récupéré depuis localStorage:', foundArtist.name);
-            } else {
-              setArtist({ _id: artistId, name: "Artiste introuvable" });
-            }
-          } else {
-            setArtist({ _id: artistId, name: "Artiste introuvable" });
-          }
-
-          if (savedProjects) {
-            const projects = JSON.parse(savedProjects);
-            const foundProject = projects.find(p => p.id.toString() === projectId);
-            if (foundProject) {
-              // Convertir format localStorage vers API
-              setProject({
-                _id: foundProject.id,
-                name: foundProject.name,
-                type: foundProject.type,
-                status: foundProject.status,
-                cover: foundProject.cover
-              });
-              console.log('✅ Projet récupéré depuis localStorage:', foundProject.name);
-            } else {
-              setProject({ _id: projectId, name: "Projet introuvable", type: "" });
-            }
-          } else {
-            setProject({ _id: projectId, name: "Projet introuvable", type: "" });
-          }
-        }
+        console.error('Erreur chargement des messages:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (artistId && projectId) {
-      loadData();
-    } else {
-      // Si pas de paramètres, pas de chargement nécessaire
-      setLoading(false);
-    }
-  }, [artistId, projectId]);
-
-  const [contactLists, setContactLists] = useState([]);
-
-  // Load contact lists grouped by category
-  useEffect(() => {
-    const loadContactLists = async () => {
-      try {
-        // Get contacts and group them by category
-        const contacts = await contactsApi.getAll();
-
-        // Group contacts by category to create contact lists
-        const categoryGroups = contacts.reduce((groups, contact) => {
-          const category = contact.category || 'Non catégorisé';
-          if (!groups[category]) {
-            groups[category] = [];
-          }
-          groups[category].push(contact);
-          return groups;
-        }, {});
-
-        // Convert to contact lists format
-        const lists = Object.entries(categoryGroups).map(([category, contacts], index) => ({
-          id: index + 1,
-          name: category,
-          count: contacts.length,
-          description: `${contacts.length} contacts dans cette catégorie`,
-          contacts: contacts
-        }));
-
-        setContactLists(lists);
-      } catch (error) {
-        console.error('Erreur lors du chargement des listes de contacts:', error);
-        setContactLists([]);
-      }
-    };
-
-    loadContactLists();
+    loadData();
   }, []);
 
-  const [newCampaign, setNewCampaign] = useState({
-    name: "",
-    subject: "",
-    content: "",
-    contactListIds: [],
-    scheduledDate: "",
-    type: "communique",
-    includeEPK: false,
-    epkLink: "",
-    useTemplate: false,
-    selectedTemplate: null,
-    templateVariables: {},
-    templateBranding: {}
+  // Filtrer les messages
+  const filteredMessages = responseMessages.filter(message => {
+    const matchesFilter = filter === "tous" || message.status === filter;
+    const matchesSearch = searchTerm === "" ||
+      message.senderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.mediaName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.artistName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.campaignName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesFilter && matchesSearch;
   });
 
-  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  // Marquer un message comme traité/non traité
+  const toggleMessageStatus = (messageId) => {
+    setResponseMessages(prev => prev.map(message =>
+      message.id === messageId
+        ? { ...message, status: message.status === "traite" ? "a_traiter" : "traite" }
+        : message
+    ));
+  };
 
-  const handleCreateCampaign = async (e) => {
-    e.preventDefault();
-
-    try {
-      // Récupérer tous les contacts disponibles pour la campagne
-      const contactsResponse = await api.get(`/contacts`);
-      let targetContacts = [];
-
-      if (contactsResponse.data.success && contactsResponse.data.data?.length > 0) {
-        // Utiliser les premiers contacts disponibles (ou ceux sélectionnés par l'utilisateur)
-        targetContacts = contactsResponse.data.data.slice(0, 3).map(contact => ({
-          contactId: contact._id
-        }));
-      } else {
-        // Si pas de contacts disponibles, retourner une erreur
-        alert("Aucun contact disponible pour cette campagne. Veuillez d'abord créer des contacts.");
-        return;
-      }
-
-      // Assurer que nous avons les vrais ObjectIds MongoDB
-      let finalArtistId = newCampaign.artistId; // Mis à jour par handleTemplateSelect
-      let finalProjectId = newCampaign.projectId; // Mis à jour par handleTemplateSelect
-
-      // Fallback si pas encore de vrais IDs (cas de création sans template)
-      if (!finalArtistId || finalArtistId.toString().length !== 24) {
-        console.log('⚠️ Pas de vrai artistId, création nécessaire...');
-        finalArtistId = await ensureArtistInMongoDB();
-      }
-
-      if (!finalProjectId || finalProjectId.toString().length !== 24) {
-        console.log('⚠️ Pas de vrai projectId, création nécessaire...');
-        finalProjectId = await ensureProjectInMongoDB(finalArtistId);
-      }
-
-      // Préparer les données de la campagne pour l'API
-      const campaignData = {
-        name: newCampaign.name,
-        subject: newCampaign.subject,
-        content: newCampaign.content || "Contenu de la campagne à définir",
-        artistId: finalArtistId,
-        projectId: finalProjectId,
-        targetContacts: targetContacts
-      };
-
-      console.log("✅ Création campagne avec IDs MongoDB:", campaignData);
-
-      // Envoyer à l'API
-      const response = await api.post(`/campaigns`, campaignData);
-
-      if (response.data.success) {
-        console.log("Campagne créée avec succès:", response.data.data);
-
-        // Réinitialiser le formulaire
-        setShowCreateForm(false);
-        setNewCampaign({
-          name: "",
-          subject: "",
-          content: "",
-          contactListIds: [],
-          scheduledDate: "",
-          type: "communique",
-          includeEPK: false,
-          epkLink: "",
-          useTemplate: false,
-          selectedTemplate: null,
-          templateVariables: {},
-          templateBranding: {}
-        });
-
-        // Optionnel: rafraîchir la liste des campagnes
-        window.location.reload();
-      } else {
-        console.error("Erreur création campagne:", response.data.message);
-        alert("Erreur lors de la création de la campagne: " + response.data.message);
-      }
-
-    } catch (error) {
-      console.error("Erreur création campagne:", error);
-      alert("Erreur lors de la création de la campagne: " + (error.response?.data?.message || error.message));
+  // Supprimer un message
+  const deleteMessage = (messageId) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce message ?")) {
+      setResponseMessages(prev => prev.filter(message => message.id !== messageId));
     }
   };
 
-  const handleContactListToggle = (listId) => {
-    setNewCampaign(prev => ({
-      ...prev,
-      contactListIds: prev.contactListIds.includes(listId)
-        ? prev.contactListIds.filter(id => id !== listId)
-        : [...prev.contactListIds, listId]
-    }));
+  // Ouvrir la modale au double-clic
+  const handleMessageDoubleClick = (message) => {
+    setSelectedMessage(message);
+    setShowModal(true);
+    setReplyContent("");
   };
 
-  // Fonction pour générer un lien public EPK
-  const generateEPKLink = () => {
-    const artistId = artist?._id || artist?.id || 'unknown';
-    const epkId = `epk_${artistId}_${Date.now()}`;
-    const epkLink = `https://presspilot.com/epk/${epkId}`;
-
-    setNewCampaign(prev => ({
-      ...prev,
-      includeEPK: true,
-      epkLink: epkLink
-    }));
-
-    // En production, ici vous envoyez l'EPK vers votre API pour stockage
-    console.log("EPK généré:", epkLink);
+  // Fermer la modale
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedMessage(null);
+    setReplyContent("");
   };
 
-  // Fonctions utilitaires pour assurer la cohérence MongoDB
-  const ensureArtistInMongoDB = async () => {
-    console.log('🎯 Vérification artiste en MongoDB...');
-
-    // Si nous avons déjà un vrai ObjectId MongoDB, le retourner
-    if (artist && artist._id && typeof artist._id === 'string' && artist._id.length === 24) {
-      console.log('✅ Artiste existant:', artist._id);
-      return artist._id;
+  // Envoyer la réponse
+  const sendReply = () => {
+    if (!replyContent.trim()) {
+      alert("Veuillez saisir un message de réponse.");
+      return;
     }
 
-    // Sinon, créer l'artiste en MongoDB à partir des données localStorage
-    try {
-      const artistData = {
-        name: artist?.name || 'Artiste inconnu',
-        genre: artist?.genre || 'Non spécifié',
-        location: artist?.location || '',
-        description: artist?.description || '',
-        website: artist?.website || '',
-        socialLinks: artist?.socialLinks || {}
-      };
+    // En production, ici vous enverriez la réponse via votre API
+    console.log("Envoi de la réponse:", {
+      to: selectedMessage.sender,
+      subject: `Re: ${selectedMessage.subject}`,
+      content: replyContent,
+      campaignId: selectedMessage.campaignName,
+      artistId: selectedMessage.artistName
+    });
 
-      console.log('📝 Création artiste MongoDB:', artistData);
-      const response = await mutate('/artists', { method: 'POST', data: artistData });
+    // Marquer le message comme traité
+    toggleMessageStatus(selectedMessage.id);
 
-      if (response.success) {
-        const mongoArtist = response.data;
-        console.log('✅ Artiste créé en MongoDB:', mongoArtist._id);
-        setArtist(mongoArtist); // Mettre à jour le state avec l'artiste MongoDB
-        return mongoArtist._id;
-      } else {
-        throw new Error('Échec création artiste');
-      }
-    } catch (error) {
-      console.error('❌ Erreur création artiste:', error);
-      throw error;
+    alert("Réponse envoyée avec succès !");
+    closeModal();
+  };
+
+  // Formater la date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Obtenir l'icône selon le type de message
+  const getMessageTypeIcon = (type) => {
+    switch(type) {
+      case 'demande_interview': return '🎤';
+      case 'confirmation_chronique': return '📝';
+      case 'confirmation_playlist': return '🎵';
+      case 'confirmation_diffusion': return '📻';
+      default: return '📧';
     }
   };
 
-  const ensureProjectInMongoDB = async (artistMongoId) => {
-    console.log('🎯 Vérification projet en MongoDB...');
-
-    // Si nous avons déjà un vrai ObjectId MongoDB, le retourner
-    if (project && project._id && typeof project._id === 'string' && project._id.length === 24) {
-      console.log('✅ Projet existant:', project._id);
-      return project._id;
-    }
-
-    // Sinon, créer le projet en MongoDB à partir des données localStorage
-    try {
-      const projectData = {
-        name: project?.name || 'Projet inconnu',
-        description: project?.description || '',
-        releaseDate: project?.releaseDate || '',
-        status: project?.status || 'En préparation',
-        artistId: artistMongoId
-      };
-
-      console.log('📝 Création projet MongoDB:', projectData);
-      const response = await mutate('/projects', { method: 'POST', data: projectData });
-
-      if (response.success) {
-        const mongoProject = response.data;
-        console.log('✅ Projet créé en MongoDB:', mongoProject._id);
-        setProject(mongoProject); // Mettre à jour le state avec le projet MongoDB
-        return mongoProject._id;
-      } else {
-        throw new Error('Échec création projet');
-      }
-    } catch (error) {
-      console.error('❌ Erreur création projet:', error);
-      throw error;
+  // Obtenir la couleur de priorité
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'haute': return '#ff4757';
+      case 'moyenne': return '#ffa502';
+      case 'basse': return '#2ed573';
+      default: return '#747d8c';
     }
   };
 
-  // Gestion des templates
-  const handleTemplateSelect = async (template) => {
-    console.log('🎨 Template sélectionné:', template.id);
-
-    try {
-      // 1. Assurer que nous avons les vrais ObjectIds MongoDB
-      const realArtistId = await ensureArtistInMongoDB();
-      const realProjectId = await ensureProjectInMongoDB(realArtistId);
-
-      console.log('✅ IDs MongoDB confirmés:', { realArtistId, realProjectId });
-
-      // 2. Mettre à jour le state avec le template ET les vrais IDs
-      setNewCampaign(prev => ({
-        ...prev,
-        useTemplate: true,
-        selectedTemplate: template,
-        type: template.id,
-        artistId: realArtistId,
-        projectId: realProjectId
-      }));
-
-      setShowTemplatePreview(true);
-    } catch (error) {
-      console.error('❌ Erreur lors de la sélection template:', error);
-      alert('Erreur lors de la préparation du template. Vérifiez que l\'artiste et le projet sont bien configurés.');
-    }
+  const stats = {
+    total: responseMessages.length,
+    aTraiter: responseMessages.filter(m => m.status === "a_traiter").length,
+    traites: responseMessages.filter(m => m.status === "traite").length,
+    prioriteHaute: responseMessages.filter(m => m.priority === "haute").length
   };
 
-  const handleTemplateVariablesChange = (variables) => {
-    setNewCampaign(prev => ({
-      ...prev,
-      templateVariables: variables
-    }));
-  };
-
-  const handleTemplateBrandingChange = (branding) => {
-    setNewCampaign(prev => ({
-      ...prev,
-      templateBranding: branding
-    }));
-  };
-
-  const handleExportHTML = (htmlContent) => {
-    console.log('HTML exporté:', htmlContent);
-    // Ici vous pouvez sauvegarder le HTML ou l'envoyer à votre API
-  };
-
-  // État de chargement
   if (loading) {
     return (
-      <div className="dashboard">
+      <Layout title="QUEUE DE RECEPTION" subtitle="Chargement...">
         <div className="loading-state">
           <div className="spinner"></div>
-          <p>Chargement des données...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si on a des paramètres mais pas de données, afficher l'erreur
-  if ((artistId && projectId) && (!artist || !project)) {
-    return (
-      <Layout title="CAMPAGNES" subtitle="Erreur de chargement">
-        <div className="error-state">
-          <h3>Erreur</h3>
-          <p>Impossible de charger les données de l'artiste ou du projet.</p>
-          <button onClick={() => navigate('/artists')} className="btn-secondary">
-            Retour aux artistes
-          </button>
+          <p>Chargement des messages...</p>
         </div>
       </Layout>
     );
   }
 
   return (
-    <Layout
-      title="CAMPAGNES"
-      subtitle={(artist && project) ? `${project.name} • ${artist.name}` : 'Gestion des campagnes de presse'}
-    >
-      <div className="campaign-header-actions">
-        <button
-          className="btn-primary"
-          onClick={() => setShowCreateForm(true)}
-        >
-          + Nouvelle campagne
-        </button>
+    <Layout title="QUEUE DE RECEPTION" subtitle="Messages de réponse aux campagnes">
+
+      {/* Statistiques */}
+      <div className="queue-stats">
+        <div className="stat-card">
+          <div className="stat-number">{stats.total}</div>
+          <div className="stat-label">Total messages</div>
+        </div>
+        <div className="stat-card urgent">
+          <div className="stat-number">{stats.aTraiter}</div>
+          <div className="stat-label">À traiter</div>
+        </div>
+        <div className="stat-card success">
+          <div className="stat-number">{stats.traites}</div>
+          <div className="stat-label">Traités</div>
+        </div>
+        <div className="stat-card warning">
+          <div className="stat-number">{stats.prioriteHaute}</div>
+          <div className="stat-label">Priorité haute</div>
+        </div>
       </div>
 
-        {(artist && project) && (
-          <div className="breadcrumb">
-            <button onClick={() => navigate('/artists')} className="breadcrumb-link">
-              Artistes
-            </button>
-            <span className="breadcrumb-separator">›</span>
-            <button onClick={() => navigate(`/artists/${artistId}/projects`)} className="breadcrumb-link">
-              {artist.name}
-            </button>
-            <span className="breadcrumb-separator">›</span>
-            <span className="breadcrumb-current">{project.name}</span>
+      {/* Filtres et recherche */}
+      <div className="queue-controls">
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="Rechercher par émetteur, média, sujet, artiste..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+          <span className="search-icon">🔍</span>
+        </div>
+
+        <div className="filter-buttons">
+          <button
+            className={`filter-btn ${filter === "tous" ? "active" : ""}`}
+            onClick={() => setFilter("tous")}
+          >
+            Tous ({stats.total})
+          </button>
+          <button
+            className={`filter-btn ${filter === "a_traiter" ? "active" : ""}`}
+            onClick={() => setFilter("a_traiter")}
+          >
+            À traiter ({stats.aTraiter})
+          </button>
+          <button
+            className={`filter-btn ${filter === "traite" ? "active" : ""}`}
+            onClick={() => setFilter("traite")}
+          >
+            Traités ({stats.traites})
+          </button>
+        </div>
+      </div>
+
+      {/* Table des messages */}
+      <div className="messages-container">
+        {filteredMessages.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              <span className="empty-icon">📬</span>
+              <h3>Aucun message trouvé</h3>
+              <p>
+                {filter === "tous"
+                  ? "Aucune réponse aux campagnes pour le moment."
+                  : `Aucun message ${filter === "a_traiter" ? "à traiter" : "traité"} trouvé.`
+                }
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="messages-table">
+            <div className="table-header">
+              <div className="col-sender">Émetteur</div>
+              <div className="col-subject">Objet du mail</div>
+              <div className="col-artist">Artiste</div>
+              <div className="col-campaign">Campagne</div>
+              <div className="col-date">Reçu le</div>
+              <div className="col-status">Statut</div>
+              <div className="col-actions">Actions</div>
+            </div>
+
+            <div className="table-body">
+              {filteredMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`message-row ${message.status}`}
+                  onDoubleClick={() => handleMessageDoubleClick(message)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="col-sender">
+                    <div className="sender-info">
+                      <div className="sender-name">
+                        {message.senderName}
+                      </div>
+                      <div className="sender-email">{message.sender}</div>
+                      <div className="media-name">{message.mediaName}</div>
+                    </div>
+                  </div>
+
+                  <div className="col-subject">
+                    <div className="subject-info">
+                      <div className="subject-text">{message.subject}</div>
+                      <div className="priority-indicator"
+                           style={{ backgroundColor: getPriorityColor(message.priority) }}>
+                        {message.priority}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-artist">
+                    <div className="artist-name">{message.artistName}</div>
+                  </div>
+
+                  <div className="col-campaign">
+                    <div className="campaign-name">{message.campaignName}</div>
+                  </div>
+
+                  <div className="col-date">
+                    <div className="date-text">{formatDate(message.receivedAt)}</div>
+                  </div>
+
+                  <div className="col-status">
+                    <button
+                      className={`status-btn ${message.status}`}
+                      onClick={() => toggleMessageStatus(message.id)}
+                    >
+                      {message.status === "traite" ? "✓ Traité" : "⏱ À traiter"}
+                    </button>
+                  </div>
+
+                  <div className="col-actions">
+                    <button
+                      className="action-btn view"
+                      onClick={() => {
+                        // Ouvrir le détail du message
+                        alert(`Contenu du message:\n\n${message.content}`);
+                      }}
+                      title="Voir le message"
+                    >
+                      👁
+                    </button>
+                    <button
+                      className="action-btn reply"
+                      onClick={() => {
+                        // Ouvrir l'interface de réponse
+                        window.open(`mailto:${message.sender}?subject=Re: ${message.subject}`);
+                      }}
+                      title="Répondre"
+                    >
+                      ↩️
+                    </button>
+                    <button
+                      className="action-btn delete"
+                      onClick={() => deleteMessage(message.id)}
+                      title="Supprimer"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+      </div>
 
+      {/* Actions en lot */}
+      {filteredMessages.length > 0 && (
+        <div className="bulk-actions">
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              const unprocessed = filteredMessages.filter(m => m.status === "a_traiter");
+              unprocessed.forEach(message => toggleMessageStatus(message.id));
+            }}
+          >
+            Marquer tous comme traités
+          </button>
+          <button
+            className="btn-tertiary"
+            onClick={() => {
+              if (window.confirm("Êtes-vous sûr de vouloir marquer tous les messages visibles comme non traités ?")) {
+                const processed = filteredMessages.filter(m => m.status === "traite");
+                processed.forEach(message => toggleMessageStatus(message.id));
+              }
+            }}
+          >
+            Marquer tous comme non traités
+          </button>
+        </div>
+      )}
 
-          {showCreateForm && (
-            <section className="dashboard-section">
-              <div className="campaigns-section">
-                <div className="section-header">
-                  <h2 className="chart-title">Créer une nouvelle campagne</h2>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setShowCreateForm(false)}
-                  >
-                    Annuler
-                  </button>
-                </div>
-
-                <form onSubmit={handleCreateCampaign} className="campaign-form">
-                  <div className="form-group">
-                    <label htmlFor="name">Nom de la campagne</label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={newCampaign.name}
-                      onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})}
-                      placeholder="Ex: Newsletter Janvier 2024"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="subject">Sujet de l'email</label>
-                    <input
-                      type="text"
-                      id="subject"
-                      value={newCampaign.subject}
-                      onChange={(e) => setNewCampaign({...newCampaign, subject: e.target.value})}
-                      placeholder="Ex: Découvrez nos nouveautés !"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="type">Type de campagne</label>
-                      <select
-                        id="type"
-                        value={newCampaign.type}
-                        onChange={(e) => setNewCampaign({...newCampaign, type: e.target.value})}
-                      >
-                        <option value="communique">Communiqué de presse</option>
-                        <option value="teaser">Teaser / Annonce</option>
-                        <option value="interview">Demande d'interview</option>
-                        <option value="review">Demande de chronique</option>
-                        <option value="premiere">Première exclusive</option>
-                        <option value="playlist">Demande playlist</option>
-                        <option value="live">Invitation concert/showcase</option>
-                        <option value="follow-up">Relance presse</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="scheduledDate">Date d'envoi</label>
-                      <input
-                        type="datetime-local"
-                        id="scheduledDate"
-                        value={newCampaign.scheduledDate}
-                        onChange={(e) => setNewCampaign({...newCampaign, scheduledDate: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Listes de contacts à cibler</label>
-                    <div className="contact-lists-grid">
-                      {contactLists.length > 0 ? contactLists.map((list) => (
-                        <div
-                          key={list.id}
-                          className={`contact-list-item ${newCampaign.contactListIds.includes(list.id) ? 'selected' : ''}`}
-                          onClick={() => handleContactListToggle(list.id)}
-                        >
-                          <div className="contact-list-info">
-                            <h4>{list.name}</h4>
-                            <p className="contact-count">{list.count.toLocaleString()} contacts</p>
-                            <p className="contact-description">{list.description}</p>
-                          </div>
-                          <div className="contact-list-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={newCampaign.contactListIds.includes(list.id)}
-                              onChange={() => {}}
-                            />
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="empty-state">
-                          <div className="empty-state-content">
-                            <p className="empty-state-title">Aucune liste de contacts disponible</p>
-                            <p className="empty-state-description">
-                              Vous devez d'abord ajouter des contacts pour créer une campagne.
-                            </p>
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              onClick={() => navigate('/contacts')}
-                            >
-                              Ajouter des contacts
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {contactLists.length > 0 && (
-                      <p className="form-helper">
-                        Total sélectionné: {contactLists
-                          .filter(list => newCampaign.contactListIds.includes(list.id))
-                          .reduce((sum, list) => sum + list.count, 0)
-                          .toLocaleString()} contacts
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Sélection du mode de création */}
-                  <div className="form-group">
-                    <label>Mode de création du contenu</label>
-                    <div className="template-mode-selector" style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '15px',
-                      marginTop: '10px'
-                    }}>
-                      <button
-                        type="button"
-                        onClick={() => setNewCampaign(prev => ({ ...prev, useTemplate: false }))}
-                        className={`template-mode-option ${!newCampaign.useTemplate ? 'active' : ''}`}
-                        style={{
-                          padding: '20px',
-                          border: !newCampaign.useTemplate ? '2px solid #0ED894' : '2px solid #e5e5e5',
-                          borderRadius: '8px',
-                          backgroundColor: !newCampaign.useTemplate ? '#f0fdf9' : '#ffffff',
-                          cursor: 'pointer',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                          ✏️ Éditeur libre
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#666666' }}>
-                          Rédigez votre contenu avec l'éditeur rich text
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setNewCampaign(prev => ({ ...prev, useTemplate: true }))}
-                        className={`template-mode-option ${newCampaign.useTemplate ? 'active' : ''}`}
-                        style={{
-                          padding: '20px',
-                          border: newCampaign.useTemplate ? '2px solid #0ED894' : '2px solid #e5e5e5',
-                          borderRadius: '8px',
-                          backgroundColor: newCampaign.useTemplate ? '#f0fdf9' : '#ffffff',
-                          cursor: 'pointer',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                          🎨 Template professionnel
-                        </div>
-                        <div style={{ fontSize: '14px', color: '#666666' }}>
-                          Utilisez nos templates pré-conçus
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Contenu selon le mode sélectionné */}
-                  {!newCampaign.useTemplate ? (
-                    <div className="form-group">
-                      <label htmlFor="content">Contenu de l'email</label>
-                      <RichTextEditor
-                        value={newCampaign.content}
-                        onChange={(content) => setNewCampaign({...newCampaign, content})}
-                        placeholder="Rédigez votre message... Vous pouvez utiliser le formatage, insérer des images, des liens, etc."
-                      />
-                      <p className="form-helper">
-                        Utilisez la barre d'outils pour mettre en forme votre texte, ajouter des liens et insérer des images
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="template-creation-section" style={{ marginBottom: '30px' }}>
-                      {/* Sélecteur de template */}
-                      <div style={{ marginBottom: '30px' }}>
-                        <TemplateSelector
-                          onTemplateSelect={handleTemplateSelect}
-                          campaignType={newCampaign.type}
-                          artistName={artist?.name || 'Artiste'}
-                          projectName={project?.name || 'Projet'}
-                        />
-                      </div>
-
-                      {/* Personnalisation de l'apparence */}
-                      {newCampaign.selectedTemplate && (
-                        <div style={{ marginBottom: '30px' }}>
-                          <TemplateBrandingManager
-                            onBrandingChange={handleTemplateBrandingChange}
-                            initialBranding={{
-                              companyName: artist?.name || 'Artiste',
-                              subtitle: `Attaché de Presse - ${project?.name || 'Projet'}`,
-                              primaryColor: '#0ED894',
-                              backgroundColor: '#000000',
-                              textColor: '#ffffff'
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      {/* Gestionnaire de variables si un template est sélectionné */}
-                      {newCampaign.selectedTemplate && (
-                        <div style={{ marginBottom: '30px' }}>
-                          <VariableManager
-                            campaignType={newCampaign.type}
-                            onVariablesChange={handleTemplateVariablesChange}
-                            initialVariables={{
-                              artistName: artist?.name || 'Artiste',
-                              projectName: project?.name || 'Projet',
-                              projectType: project?.type || 'Album',
-                              contactName: 'Prénom Nom',
-                              contactEmail: 'contact@presspilot.com',
-                              epkLink: newCampaign.epkLink
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      {/* Prévisualisation */}
-                      {newCampaign.selectedTemplate && (
-                        <div style={{ marginBottom: '30px' }}>
-                          <TemplatePreview
-                            templateType={newCampaign.type}
-                            variables={newCampaign.templateVariables}
-                            branding={newCampaign.templateBranding}
-                            showPreview={showTemplatePreview}
-                            onExportHTML={handleExportHTML}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Section EPK */}
-                  <div className="form-section">
-                    <h3>EPK - Electronic Press Kit</h3>
-                    <p className="form-helper">
-                      Intégrez l'EPK de l'artiste pour donner accès aux journalistes à tous les éléments de presse (photos, bio, extraits audio, etc.)
-                    </p>
-
-                    {!newCampaign.includeEPK ? (
-                      <div className="epk-integration-prompt">
-                        <div className="epk-prompt-content">
-                          <span className="epk-icon">EPK</span>
-                          <div className="epk-prompt-text">
-                            <h4>Dossier de presse complet</h4>
-                            <p>Générez un lien vers l'EPK de {artist?.name || 'l\'artiste'} pour faciliter le travail des journalistes</p>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            onClick={generateEPKLink}
-                          >
-                            Intégrer l'EPK
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="epk-integrated">
-                        <div className="epk-integrated-header">
-                          <span className="epk-success-icon">✓</span>
-                          <h4>EPK intégré à la campagne</h4>
-                          <button
-                            type="button"
-                            className="btn-secondary-small"
-                            onClick={() => setNewCampaign(prev => ({...prev, includeEPK: false, epkLink: ""}))}
-                          >
-                            Retirer
-                          </button>
-                        </div>
-                        <div className="epk-link-preview">
-                          <label>Lien public EPK :</label>
-                          <div className="link-display">
-                            <code>{newCampaign.epkLink}</code>
-                            <button
-                              type="button"
-                              className="copy-link-btn"
-                              onClick={() => navigator.clipboard.writeText(newCampaign.epkLink)}
-                            >
-                              Copier
-                            </button>
-                          </div>
-                        </div>
-                        <div className="epk-content-preview">
-                          <h5>Contenu de l'EPK :</h5>
-                          <div className="epk-items">
-                            <span className="epk-item">Photos de presse</span>
-                            <span className="epk-item">Biographie complète</span>
-                            <span className="epk-item">Extraits audio</span>
-                            <span className="epk-item">Vidéos</span>
-                            <span className="epk-item">Revues de presse</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="form-actions">
-                    <button type="submit" className="btn-primary">
-                      Créer la campagne
-                    </button>
-                    <button type="button" className="btn-secondary" onClick={() => setShowCreateForm(false)}>
-                      Annuler
-                    </button>
-                  </div>
-                </form>
+      {/* Modale de détail et réponse */}
+      {showModal && selectedMessage && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                <span className="message-type-icon">
+                  {getMessageTypeIcon(selectedMessage.type)}
+                </span>
+                <h3>{selectedMessage.subject}</h3>
               </div>
-            </section>
-          )}
+              <button className="modal-close" onClick={closeModal}>
+                ×
+              </button>
+            </div>
 
-        <section className="dashboard-section">
-          <CampaignListAdvanced artistId={artistId} projectId={projectId} />
-        </section>
+            <div className="modal-body">
+              {/* Informations du message */}
+              <div className="message-details">
+                <div className="detail-row">
+                  <strong>De :</strong>
+                  <span>{selectedMessage.senderName} ({selectedMessage.sender})</span>
+                </div>
+                <div className="detail-row">
+                  <strong>Média :</strong>
+                  <span>{selectedMessage.mediaName}</span>
+                </div>
+                <div className="detail-row">
+                  <strong>Artiste :</strong>
+                  <span>{selectedMessage.artistName}</span>
+                </div>
+                <div className="detail-row">
+                  <strong>Campagne :</strong>
+                  <span>{selectedMessage.campaignName}</span>
+                </div>
+                <div className="detail-row">
+                  <strong>Reçu le :</strong>
+                  <span>{formatDate(selectedMessage.receivedAt)}</span>
+                </div>
+                <div className="detail-row">
+                  <strong>Priorité :</strong>
+                  <span className="priority-badge" style={{ backgroundColor: getPriorityColor(selectedMessage.priority) }}>
+                    {selectedMessage.priority}
+                  </span>
+                </div>
+              </div>
+
+              {/* Contenu du message */}
+              <div className="message-content">
+                <h4>Message :</h4>
+                <div className="content-text">{selectedMessage.content}</div>
+              </div>
+
+              {/* Zone de réponse */}
+              <div className="reply-section">
+                <h4>Répondre :</h4>
+                <textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="Votre réponse..."
+                  rows="6"
+                  className="reply-textarea"
+                />
+                <div className="reply-info">
+                  <small>
+                    Cette réponse sera rattachée à la campagne "{selectedMessage.campaignName}"
+                    pour l'artiste {selectedMessage.artistName}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn-primary"
+                onClick={sendReply}
+                disabled={!replyContent.trim()}
+              >
+                📧 Envoyer la réponse
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => toggleMessageStatus(selectedMessage.id)}
+              >
+                {selectedMessage.status === "traite" ? "⏱ Marquer non traité" : "✓ Marquer traité"}
+              </button>
+              <button className="btn-tertiary" onClick={closeModal}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .queue-stats {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+
+        .stat-card {
+          background: white;
+          border-radius: 12px;
+          padding: 24px;
+          text-align: center;
+          border: 2px solid #f0f0f0;
+          transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.urgent {
+          border-color: #ff4757;
+          background: linear-gradient(135deg, #fff5f5 0%, #white 100%);
+        }
+
+        .stat-card.success {
+          border-color: #2ed573;
+          background: linear-gradient(135deg, #f0fff4 0%, #white 100%);
+        }
+
+        .stat-card.warning {
+          border-color: #ffa502;
+          background: linear-gradient(135deg, #fffaf0 0%, #white 100%);
+        }
+
+        .stat-number {
+          font-size: 36px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 8px;
+        }
+
+        .stat-label {
+          font-size: 14px;
+          color: #7f8c8d;
+          font-weight: 500;
+        }
+
+        .queue-controls {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 30px;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .search-box {
+          position: relative;
+          flex: 1;
+          max-width: 400px;
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 12px 40px 12px 16px;
+          border: 2px solid #e5e5e5;
+          border-radius: 8px;
+          font-size: 14px;
+          transition: border-color 0.2s ease;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: #0ED894;
+        }
+
+        .search-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #999;
+        }
+
+        .filter-buttons {
+          display: flex;
+          gap: 8px;
+        }
+
+        .filter-btn {
+          padding: 8px 16px;
+          border: 2px solid #e5e5e5;
+          background: white;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+          border-color: #0ED894;
+        }
+
+        .filter-btn.active {
+          background: #0ED894;
+          border-color: #0ED894;
+          color: white;
+        }
+
+        .messages-container {
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .messages-table {
+          width: 100%;
+        }
+
+        .table-header {
+          display: grid;
+          grid-template-columns: 2fr 2fr 1fr 1.5fr 1fr 1fr 120px;
+          background: #f8f9fa;
+          padding: 16px;
+          font-weight: 600;
+          color: #2c3e50;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .message-row {
+          display: grid;
+          grid-template-columns: 2fr 2fr 1fr 1.5fr 1fr 1fr 120px;
+          padding: 16px;
+          border-bottom: 1px solid #f0f0f0;
+          transition: background-color 0.2s ease;
+          align-items: center;
+        }
+
+        .message-row:hover {
+          background-color: #f8f9fa;
+        }
+
+        .message-row.a_traiter {
+          background-color: #fff5f5;
+          border-left: 4px solid #ff4757;
+        }
+
+        .message-row.traite {
+          background-color: #f0fff4;
+          border-left: 4px solid #2ed573;
+        }
+
+        .sender-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .sender-name {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          color: #2c3e50;
+          font-size: 14px;
+        }
+
+        .message-type-icon {
+          font-size: 16px;
+        }
+
+        .sender-email {
+          font-size: 12px;
+          color: #7f8c8d;
+        }
+
+        .media-name {
+          font-size: 12px;
+          color: #0ED894;
+          font-weight: 500;
+        }
+
+        .subject-info {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .subject-text {
+          font-size: 14px;
+          color: #2c3e50;
+          line-height: 1.4;
+        }
+
+        .priority-indicator {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          color: white;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          width: fit-content;
+        }
+
+        .artist-name, .campaign-name {
+          font-size: 14px;
+          color: #2c3e50;
+          font-weight: 500;
+        }
+
+        .date-text {
+          font-size: 13px;
+          color: #7f8c8d;
+        }
+
+        .status-btn {
+          padding: 6px 12px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .status-btn.traite {
+          background: #2ed573;
+          color: white;
+        }
+
+        .status-btn.a_traiter {
+          background: #ff4757;
+          color: white;
+        }
+
+        .status-btn:hover {
+          opacity: 0.8;
+          transform: translateY(-1px);
+        }
+
+        .col-actions {
+          display: flex;
+          gap: 4px;
+          justify-content: center;
+        }
+
+        .action-btn {
+          width: 28px;
+          height: 28px;
+          border: none;
+          background: #f0f0f0;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .action-btn:hover {
+          transform: translateY(-1px);
+        }
+
+        .action-btn.view:hover {
+          background: #3498db;
+          color: white;
+        }
+
+        .action-btn.reply:hover {
+          background: #0ED894;
+          color: white;
+        }
+
+        .action-btn.delete:hover {
+          background: #e74c3c;
+          color: white;
+        }
+
+        .empty-state {
+          padding: 60px 20px;
+          text-align: center;
+        }
+
+        .empty-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+          display: block;
+        }
+
+        .empty-state h3 {
+          color: #2c3e50;
+          margin-bottom: 8px;
+        }
+
+        .empty-state p {
+          color: #7f8c8d;
+          margin-bottom: 0;
+        }
+
+        .bulk-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          margin-top: 20px;
+          padding: 20px;
+          background: #f8f9fa;
+          border-radius: 8px;
+        }
+
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #f0f0f0;
+          border-top: 4px solid #0ED894;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Styles pour la modale */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 12px;
+          max-width: 800px;
+          width: 100%;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 24px;
+          border-bottom: 1px solid #e5e5e5;
+        }
+
+        .modal-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .modal-title h3 {
+          margin: 0;
+          color: #2c3e50;
+          font-size: 20px;
+        }
+
+        .modal-close {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: #f0f0f0;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+          background: #e0e0e0;
+          transform: scale(1.1);
+        }
+
+        .modal-body {
+          padding: 24px;
+        }
+
+        .message-details {
+          background: #f8f9fa;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 24px;
+        }
+
+        .detail-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .detail-row:last-child {
+          margin-bottom: 0;
+        }
+
+        .detail-row strong {
+          min-width: 100px;
+          color: #7f8c8d;
+          font-size: 14px;
+        }
+
+        .detail-row span {
+          color: #2c3e50;
+          font-size: 14px;
+        }
+
+        .priority-badge {
+          padding: 4px 12px;
+          border-radius: 12px;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .message-content {
+          margin-bottom: 24px;
+        }
+
+        .message-content h4 {
+          margin: 0 0 12px 0;
+          color: #2c3e50;
+          font-size: 16px;
+        }
+
+        .content-text {
+          background: #fff;
+          border: 1px solid #e5e5e5;
+          border-radius: 8px;
+          padding: 16px;
+          color: #2c3e50;
+          line-height: 1.6;
+          white-space: pre-wrap;
+          font-size: 14px;
+        }
+
+        .reply-section h4 {
+          margin: 0 0 12px 0;
+          color: #2c3e50;
+          font-size: 16px;
+        }
+
+        .reply-textarea {
+          width: 100%;
+          border: 2px solid #e5e5e5;
+          border-radius: 8px;
+          padding: 12px;
+          font-size: 14px;
+          font-family: inherit;
+          resize: vertical;
+          transition: border-color 0.2s ease;
+        }
+
+        .reply-textarea:focus {
+          outline: none;
+          border-color: #0ED894;
+        }
+
+        .reply-info {
+          margin-top: 8px;
+          color: #7f8c8d;
+          font-style: italic;
+        }
+
+        .modal-footer {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+          padding: 24px;
+          border-top: 1px solid #e5e5e5;
+          background: #f8f9fa;
+        }
+
+        .btn-primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+          .table-header, .message-row {
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+
+          .queue-controls {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .search-box {
+            max-width: none;
+          }
+
+          .modal-overlay {
+            padding: 10px;
+          }
+
+          .modal-content {
+            max-height: 95vh;
+          }
+
+          .modal-header, .modal-body, .modal-footer {
+            padding: 16px;
+          }
+
+          .modal-footer {
+            flex-direction: column;
+          }
+
+          .detail-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+
+          .detail-row strong {
+            min-width: auto;
+          }
+        }
+      `}</style>
     </Layout>
   );
 };

@@ -93,6 +93,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/artists" element={<Artists />} />
+        <Route path="/projects" element={<Projects />} />
         <Route path="/artists/:artistId/projects" element={<Projects />} />
         <Route path="/artists/:artistId/projects/:projectId/campaigns" element={<Campaigns />} />
         <Route path="/contacts" element={<Contacts />} />

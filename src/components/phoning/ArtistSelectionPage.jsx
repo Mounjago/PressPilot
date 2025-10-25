@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Music, Calendar, Search } from 'lucide-react';
 import LoadingSpinner from '../LoadingSpinner';
+import { projectsApi } from '../../api';
 import '../../styles/Dashboard.css';
 
 const ArtistSelectionPage = ({ onSelectArtist, onBack }) => {
@@ -17,55 +18,64 @@ const ArtistSelectionPage = ({ onSelectArtist, onBack }) => {
     try {
       setLoading(true);
 
-      // Récupérer les artistes depuis l'API projects (groupés par artiste)
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Récupérer les artistes depuis le localStorage (comme dans /artistes)
+      const savedArtists = localStorage.getItem('presspilot-artists');
+      let artistsData = [];
 
-      if (!response.ok) {
-        throw new Error('Erreur lors du chargement des projets');
+      if (savedArtists) {
+        artistsData = JSON.parse(savedArtists);
       }
 
-      const projects = await response.json();
+      // Récupérer les projets pour enrichir les données des artistes
+      let projects = [];
+      try {
+        projects = await projectsApi.getAll();
+      } catch (error) {
+        console.warn('Impossible de charger les projets:', error);
+      }
 
-      // Grouper les projets par artiste
-      const artistsMap = new Map();
+      // Enrichir les artistes avec les données des projets depuis localStorage
+      const enrichedArtists = artistsData.map(artist => {
+        // Récupérer les projets de cet artiste depuis localStorage
+        const savedProjects = localStorage.getItem(`presspilot-projects-${artist.id}`);
+        let artistProjects = [];
 
-      projects.forEach(project => {
-        if (!artistsMap.has(project.artist)) {
-          artistsMap.set(project.artist, {
-            name: project.artist,
-            projectsCount: 0,
-            projects: [],
-            genres: new Set(),
-            latestProject: null,
-            totalBudget: 0
-          });
+        if (savedProjects) {
+          artistProjects = JSON.parse(savedProjects);
         }
 
-        const artist = artistsMap.get(project.artist);
-        artist.projectsCount++;
-        artist.projects.push(project);
-        artist.genres.add(project.genre);
-        artist.totalBudget += project.budget?.total || 0;
+        // Récupérer l'image du projet le plus récent avec cover Odesli/Spotify
+        let artistAvatar = artist.avatar;
 
-        if (!artist.latestProject || new Date(project.createdAt) > new Date(artist.latestProject.createdAt)) {
-          artist.latestProject = project;
+        if (artistProjects.length > 0) {
+          const latestProject = artistProjects.sort((a, b) =>
+            new Date(b.createdAt || b.releaseDate) - new Date(a.createdAt || a.releaseDate)
+          )[0];
+
+          // Utiliser la cover du projet le plus récent si disponible
+          if (latestProject.cover && !latestProject.cover.includes('placeholder')) {
+            artistAvatar = latestProject.cover;
+          }
         }
+
+        // Fallback vers l'avatar de l'artiste ou placeholder
+        if (!artistAvatar) {
+          artistAvatar = `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${artist.name.charAt(0)}`;
+        }
+
+        return {
+          ...artist,
+          projectsCount: artistProjects.length,
+          projects: artistProjects,
+          genres: artist.genre || 'Non spécifié',
+          latestProject: artistProjects.length > 0 ?
+            artistProjects.sort((a, b) => new Date(b.createdAt || b.releaseDate) - new Date(a.createdAt || a.releaseDate))[0] :
+            null,
+          avatar: artistAvatar
+        };
       });
 
-      // Convertir en tableau et trier
-      const artistsList = Array.from(artistsMap.values()).map(artist => ({
-        ...artist,
-        genres: Array.from(artist.genres).join(', '),
-        avatar: `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${artist.name.charAt(0)}`
-      })).sort((a, b) => a.name.localeCompare(b.name));
-
-      setArtists(artistsList);
+      setArtists(enrichedArtists);
     } catch (error) {
       console.error('Erreur lors du chargement des artistes:', error);
     } finally {
@@ -74,16 +84,21 @@ const ArtistSelectionPage = ({ onSelectArtist, onBack }) => {
   };
 
   const filteredArtists = artists.filter(artist => {
+    const genreString = typeof artist.genres === 'string' ? artist.genres :
+                       Array.isArray(artist.genres) ? artist.genres.join(', ') : 'Non spécifié';
+
     const matchesSearch = artist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         artist.genres.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGenre = selectedGenre === 'all' || artist.genres.toLowerCase().includes(selectedGenre.toLowerCase());
+                         genreString.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesGenre = selectedGenre === 'all' || genreString.toLowerCase().includes(selectedGenre.toLowerCase());
 
     return matchesSearch && matchesGenre;
   });
 
-  const uniqueGenres = [...new Set(artists.flatMap(artist =>
-    artist.genres.split(', ').map(genre => genre.trim())
-  ))].filter(Boolean).sort();
+  const uniqueGenres = [...new Set(artists.map(artist => {
+    const genreString = typeof artist.genres === 'string' ? artist.genres :
+                       Array.isArray(artist.genres) ? artist.genres.join(', ') : 'Non spécifié';
+    return genreString.split(', ').map(genre => genre.trim());
+  }).flat())].filter(Boolean).sort();
 
   if (loading) {
     return (
@@ -169,7 +184,10 @@ const ArtistSelectionPage = ({ onSelectArtist, onBack }) => {
                 </div>
                 <div className="artist-basic-info">
                   <h3 className="artist-name">{artist.name}</h3>
-                  <p className="artist-genres">{artist.genres}</p>
+                  <p className="artist-genres">{
+                    typeof artist.genres === 'string' ? artist.genres :
+                    Array.isArray(artist.genres) ? artist.genres.join(', ') : 'Non spécifié'
+                  }</p>
                 </div>
               </div>
 

@@ -36,46 +36,35 @@ const Phoning = () => {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem('authToken');
+      // Charger toutes les sessions depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
 
-      // Charger les sessions actives
-      const sessionsResponse = await fetch('/api/call-sessions?status=active&limit=10', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Filtrer les sessions actives
+      const activeSessions = allSessions.filter(session => session.status === 'active').slice(0, 10);
+      setActiveSessions(activeSessions);
 
-      if (sessionsResponse.ok) {
-        const sessionsData = await sessionsResponse.json();
-        setActiveSessions(sessionsData.sessions || []);
-      }
+      // Sessions récentes (5 dernières par date de création)
+      const recentSessions = allSessions
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
+      setRecentSessions(recentSessions);
 
-      // Charger les sessions récentes
-      const recentResponse = await fetch('/api/call-sessions?limit=5', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Calculer les statistiques
+      const stats = {
+        totalSessions: allSessions.length,
+        activeSessions: activeSessions.length,
+        totalCalls: allSessions.reduce((sum, session) => sum + (session.stats?.totalCalls || 0), 0),
+        answeredCalls: allSessions.reduce((sum, session) => sum + (session.stats?.answeredCalls || 0), 0),
+        totalDuration: allSessions.reduce((sum, session) => sum + (session.stats?.duration || 0), 0),
+        avgSuccessRate: allSessions.length > 0 ?
+          allSessions.reduce((sum, session) => {
+            const rate = session.stats?.totalCalls > 0 ?
+              (session.stats.answeredCalls / session.stats.totalCalls) : 0;
+            return sum + rate;
+          }, 0) / allSessions.length : 0
+      };
 
-      if (recentResponse.ok) {
-        const recentData = await recentResponse.json();
-        setRecentSessions(recentData.sessions || []);
-      }
-
-      // Charger les statistiques
-      const statsResponse = await fetch('/api/call-sessions/stats/overview', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (statsResponse.ok) {
-        const stats = await statsResponse.json();
-        setCallStats(stats);
-      }
+      setCallStats(stats);
 
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -104,22 +93,45 @@ const Phoning = () => {
 
   const handleSessionCreated = async (sessionData) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/call-sessions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Enrichir les données de session avec les informations du projet et de l'artiste
+      const enrichedSessionData = {
+        ...sessionData,
+        artistId: selectedArtist.id,
+        artistName: selectedArtist.name,
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        projectGenre: selectedProject.genre,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        stats: {
+          totalCalls: 0,
+          answeredCalls: 0,
+          voicemails: 0,
+          noAnswers: 0,
+          duration: 0
         },
-        body: JSON.stringify(sessionData)
-      });
+        calls: []
+      };
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la création de la session');
-      }
+      // Stocker la session dans localStorage avec liaison au projet
+      const sessionId = Date.now().toString();
+      const sessionWithId = {
+        ...enrichedSessionData,
+        _id: sessionId,
+        id: sessionId
+      };
 
-      const newSession = await response.json();
-      setCurrentSession(newSession);
+      // Sauvegarder dans localStorage pour le projet
+      const existingSessions = JSON.parse(localStorage.getItem(`presspilot-sessions-${selectedProject.id}`) || '[]');
+      existingSessions.push(sessionWithId);
+      localStorage.setItem(`presspilot-sessions-${selectedProject.id}`, JSON.stringify(existingSessions));
+
+      // Sauvegarder aussi dans la liste générale des sessions
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      allSessions.push(sessionWithId);
+      localStorage.setItem('presspilot-all-sessions', JSON.stringify(allSessions));
+
+      setCurrentSession(sessionWithId);
       setCurrentStep('session-management');
 
       // Recharger les données du dashboard

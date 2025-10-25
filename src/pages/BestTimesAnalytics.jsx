@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, TrendingUp, Phone, Mail, Target, Users } from 'lucide-react';
 import Layout from '../components/Layout';
-import { analyticsApi } from '../api';
 import '../styles/Dashboard.css';
 
 const BestTimesAnalytics = () => {
@@ -23,20 +22,44 @@ const BestTimesAnalytics = () => {
       setLoading(true);
       setError(null);
 
-      const data = await analyticsApi.getBestTimes(selectedPeriod);
+      // Charger les données depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      const allCampaigns = JSON.parse(localStorage.getItem('presspilot-campaigns') || '[]');
 
-      setBestTimesData({
-        hourly: data.hourly || [],
-        daily: data.daily || []
+      // Filtrer par période
+      const startDate = new Date(getStartDate());
+      const endDate = new Date();
+
+      const filteredSessions = allSessions.filter(session => {
+        const sessionDate = new Date(session.createdAt);
+        return sessionDate >= startDate && sessionDate <= endDate;
       });
 
-      setInsights(data.insights || []);
+      const filteredCampaigns = allCampaigns.filter(campaign => {
+        const campaignDate = new Date(campaign.sentAt || campaign.createdAt);
+        return campaignDate >= startDate && campaignDate <= endDate;
+      });
+
+      // Analyser les données par heure
+      const hourlyData = generateHourlyAnalysis(filteredSessions, filteredCampaigns);
+
+      // Analyser les données par jour
+      const dailyData = generateDailyAnalysis(filteredSessions, filteredCampaigns);
+
+      // Générer les insights
+      const insights = generateInsights(hourlyData, dailyData, filteredSessions, filteredCampaigns);
+
+      setBestTimesData({
+        hourly: hourlyData,
+        daily: dailyData
+      });
+
+      setInsights(insights);
 
     } catch (error) {
       console.error('Erreur lors du chargement des best times:', error);
       setError('Impossible de charger les données d\'analyse des meilleurs moments');
 
-      // Empty state instead of mock data
       setBestTimesData({
         hourly: [],
         daily: []
@@ -46,6 +69,183 @@ const BestTimesAnalytics = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStartDate = () => {
+    const now = new Date();
+    switch (selectedPeriod) {
+      case '7d':
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      case '30d':
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      case '90d':
+        return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      default:
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    }
+  };
+
+  const generateHourlyAnalysis = (sessions, campaigns) => {
+    const hourlyStats = {};
+
+    // Initialiser toutes les heures
+    for (let hour = 0; hour < 24; hour++) {
+      hourlyStats[hour] = {
+        hour: `${hour.toString().padStart(2, '0')}h`,
+        emails: 0,
+        calls: 0,
+        responses: 0,
+        responseRate: 0
+      };
+    }
+
+    // Analyser les sessions d'appels
+    sessions.forEach(session => {
+      const sessionDate = new Date(session.createdAt);
+      const hour = sessionDate.getHours();
+
+      if (session.callLogs) {
+        session.callLogs.forEach(call => {
+          const callDate = new Date(call.timestamp || session.createdAt);
+          const callHour = callDate.getHours();
+
+          hourlyStats[callHour].calls++;
+          if (call.status === 'answered') {
+            hourlyStats[callHour].responses++;
+          }
+        });
+      }
+    });
+
+    // Analyser les campagnes email
+    campaigns.forEach(campaign => {
+      if (campaign.sentAt) {
+        const campaignDate = new Date(campaign.sentAt);
+        const hour = campaignDate.getHours();
+
+        hourlyStats[hour].emails += campaign.stats?.emailsSent || 0;
+        hourlyStats[hour].responses += campaign.stats?.emailsOpened || 0;
+      }
+    });
+
+    // Calculer les taux de réponse
+    Object.keys(hourlyStats).forEach(hour => {
+      const total = hourlyStats[hour].calls + hourlyStats[hour].emails;
+      hourlyStats[hour].responseRate = total > 0
+        ? Math.round((hourlyStats[hour].responses / total) * 100)
+        : 0;
+    });
+
+    return Object.values(hourlyStats);
+  };
+
+  const generateDailyAnalysis = (sessions, campaigns) => {
+    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const dailyStats = {};
+
+    // Initialiser tous les jours
+    dayNames.forEach((day, index) => {
+      dailyStats[index] = {
+        day: day,
+        emails: 0,
+        calls: 0,
+        responses: 0,
+        responseRate: 0
+      };
+    });
+
+    // Analyser les sessions d'appels
+    sessions.forEach(session => {
+      const sessionDate = new Date(session.createdAt);
+      const dayOfWeek = sessionDate.getDay();
+
+      if (session.callLogs) {
+        session.callLogs.forEach(call => {
+          const callDate = new Date(call.timestamp || session.createdAt);
+          const callDay = callDate.getDay();
+
+          dailyStats[callDay].calls++;
+          if (call.status === 'answered') {
+            dailyStats[callDay].responses++;
+          }
+        });
+      }
+    });
+
+    // Analyser les campagnes email
+    campaigns.forEach(campaign => {
+      if (campaign.sentAt) {
+        const campaignDate = new Date(campaign.sentAt);
+        const dayOfWeek = campaignDate.getDay();
+
+        dailyStats[dayOfWeek].emails += campaign.stats?.emailsSent || 0;
+        dailyStats[dayOfWeek].responses += campaign.stats?.emailsOpened || 0;
+      }
+    });
+
+    // Calculer les taux de réponse
+    Object.keys(dailyStats).forEach(day => {
+      const total = dailyStats[day].calls + dailyStats[day].emails;
+      dailyStats[day].responseRate = total > 0
+        ? Math.round((dailyStats[day].responses / total) * 100)
+        : 0;
+    });
+
+    return Object.values(dailyStats);
+  };
+
+  const generateInsights = (hourlyData, dailyData, sessions, campaigns) => {
+    const insights = [];
+
+    // Meilleure heure
+    const bestHour = hourlyData.reduce((best, current) =>
+      current.responseRate > best.responseRate ? current : best
+    );
+
+    if (bestHour.responseRate > 0) {
+      insights.push({
+        title: "Meilleure heure",
+        value: bestHour.hour,
+        description: `Taux de réponse de ${bestHour.responseRate}%`,
+        type: "success",
+        icon: Clock
+      });
+    }
+
+    // Meilleur jour
+    const bestDay = dailyData.reduce((best, current) =>
+      current.responseRate > best.responseRate ? current : best
+    );
+
+    if (bestDay.responseRate > 0) {
+      insights.push({
+        title: "Meilleur jour",
+        value: bestDay.day,
+        description: `Taux de réponse de ${bestDay.responseRate}%`,
+        type: "success",
+        icon: Calendar
+      });
+    }
+
+    // Activité totale
+    const totalCalls = sessions.reduce((sum, session) =>
+      sum + (session.callLogs?.length || 0), 0
+    );
+    const totalEmails = campaigns.reduce((sum, campaign) =>
+      sum + (campaign.stats?.emailsSent || 0), 0
+    );
+
+    if (totalCalls + totalEmails > 0) {
+      insights.push({
+        title: "Activité totale",
+        value: `${totalCalls + totalEmails}`,
+        description: `${totalCalls} appels, ${totalEmails} emails`,
+        type: "info",
+        icon: TrendingUp
+      });
+    }
+
+    return insights;
   };
 
   const getBestHours = () => {
@@ -159,7 +359,13 @@ const BestTimesAnalytics = () => {
           <h3 className="section-title text-xl font-semibold text-gray-900 mb-4">Performance par heure</h3>
           <div className="chart-container bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             {bestTimesData.hourly.length > 0 ? (
-              <div className="best-times-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div className="best-times-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                gap: '12px',
+                maxWidth: '100%',
+                overflowX: 'auto'
+              }}>
                 {bestTimesData.hourly.map((hour, index) => {
                 const performanceClass = hour.responseRate > 20 ? 'high-performance' : hour.responseRate > 15 ? 'medium-performance' : 'low-performance';
                 const colorClasses = {
@@ -171,9 +377,19 @@ const BestTimesAnalytics = () => {
                 return (
                   <div
                     key={index}
-                    className={`time-slot p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 hover:shadow-md ${
+                    className={`time-slot rounded-lg border-2 text-center transition-all duration-300 hover:shadow-md ${
                       colorClasses[performanceClass]
                     }`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 8px',
+                      minHeight: '100px',
+                      minWidth: '80px',
+                      overflow: 'hidden'
+                    }}
                   >
                     <div className="time-label font-semibold text-sm sm:text-base text-gray-900 mb-2">{hour.hour}</div>
                     <div className="time-metrics flex justify-center space-x-2 sm:space-x-3 mb-2">
@@ -207,11 +423,16 @@ const BestTimesAnalytics = () => {
         </div>
 
         {/* Analyse par jours */}
-        <div className="analytics-section mb-8">
+        <div className="analytics-section mb-8" style={{ marginTop: '48px' }}>
           <h3 className="section-title text-xl font-semibold text-gray-900 mb-4">Performance par jour</h3>
           <div className="chart-container bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             {bestTimesData.daily.length > 0 ? (
-              <div className="daily-performance-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
+              <div className="daily-performance-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                gap: '16px',
+                maxWidth: '100%'
+              }}>
                 {bestTimesData.daily.map((day, index) => {
                 const performanceClass = day.responseRate > 25 ? 'high-performance' : day.responseRate > 20 ? 'medium-performance' : 'low-performance';
                 const colorClasses = {
@@ -223,9 +444,19 @@ const BestTimesAnalytics = () => {
                 return (
                   <div
                     key={index}
-                    className={`daily-slot p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 hover:shadow-md ${
+                    className={`daily-slot rounded-lg border-2 text-center transition-all duration-300 hover:shadow-md ${
                       colorClasses[performanceClass]
                     }`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '16px 12px',
+                      minHeight: '120px',
+                      minWidth: '100px',
+                      overflow: 'hidden'
+                    }}
                   >
                     <div className="day-label font-semibold text-sm sm:text-base text-gray-900 mb-2">{day.day}</div>
                     <div className="daily-metrics flex justify-center space-x-2 sm:space-x-3 mb-2">

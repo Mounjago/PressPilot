@@ -7,7 +7,100 @@
   margin-bottom: 2rem;
 }
 
+/* Updated Analytics Controls with Grid Layout */
 .analytics-controls {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+/* Filters Grid Layout */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  align-items: end;
+}
+
+/* Individual Filter Items */
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.filter-select {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #374151;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.filter-select:hover {
+  border-color: #d1d5db;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-select:disabled {
+  background-color: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Actions Item (Export Button) */
+.actions-item {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-export:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-export:active {
+  transform: translateY(0);
+}
+
+/* Legacy analytics controls for older styles */
+.analytics-controls.legacy {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -238,6 +331,11 @@
   .table-row {
     grid-template-columns: 1fr;
   }
+
+  /* Responsive grid filters for tablets */
+  .filters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -249,6 +347,18 @@
 
   .analytics-controls {
     justify-content: space-between;
+    padding: 16px;
+  }
+
+  /* Mobile grid filters - single column */
+  .filters-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .btn-export {
+    width: 100%;
+    justify-content: center;
   }
 
   .stats-grid {

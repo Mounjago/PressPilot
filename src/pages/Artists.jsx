@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import Layout from "../components/Layout";
+import { uploadImageToCloudinary } from "../services/cloudinary";
 
 const Artists = () => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingArtist, setEditingArtist] = useState(null);
   // Initialiser les artistes depuis localStorage ou avec un tableau vide
   const [artists, setArtists] = useState(() => {
     const savedArtists = localStorage.getItem('presspilot-artists');
@@ -31,10 +34,15 @@ const Artists = () => {
       audioSamples: [],
       videos: [],
       pressClippings: []
-    }
+    },
+    odesliLinks: null,
+    isLoadingLinks: false,
+    avatar: ""
   });
 
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [storageMode, setStorageMode] = useState('local'); // local, dropbox, googledrive
   const [cloudConnections, setCloudConnections] = useState({
     dropbox: false,
@@ -119,6 +127,266 @@ const Artists = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Fonction pour gérer l'upload d'avatar vers Cloudinary
+  const handleAvatarUpload = async (event, isEditMode = false) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner un fichier image valide (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Vérifier la taille (max 10MB pour Cloudinary)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('L\'image ne doit pas dépasser 10MB');
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      setUploadProgress(0);
+
+      // Pour l'instant, utilisons une URL temporaire locale avec FileReader
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = {
+          url: e.target.result, // URL base64 temporaire
+          publicId: `temp_${Date.now()}`,
+          displayName: file.name,
+          originalFilename: file.name
+        };
+
+        // Mettre à jour l'état approprié avec l'URL locale
+        if (isEditMode) {
+          setEditingArtist(prev => ({
+            ...prev,
+            avatar: result.url,
+            avatarPublicId: result.publicId
+          }));
+        } else {
+          setNewArtist(prev => ({
+            ...prev,
+            avatar: result.url,
+            avatarPublicId: result.publicId
+          }));
+        }
+
+        alert('Avatar chargé avec succès !');
+        setUploadingAvatar(false);
+        setUploadProgress(0);
+      };
+
+      reader.onerror = () => {
+        console.error('Erreur lors de la lecture du fichier');
+        alert('Erreur lors de la lecture du fichier');
+        setUploadingAvatar(false);
+        setUploadProgress(0);
+      };
+
+      reader.readAsDataURL(file);
+
+    } catch (error) {
+      console.error('Erreur lors de l\'upload:', error);
+      alert(`Erreur lors de l'upload: ${error.message}`);
+      setUploadingAvatar(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Fonction pour récupérer les liens Odesli et métadonnées depuis Spotify artiste
+  const fetchOdesliLinks = async (spotifyUrl) => {
+    if (!spotifyUrl) {
+      alert('Veuillez entrer une URL Spotify valide');
+      return;
+    }
+
+    setNewArtist(prev => ({ ...prev, isLoadingLinks: true }));
+
+    try {
+      // Timeout après 10 secondes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.linksByPlatform) {
+        let artistUpdates = {
+          odesliLinks: data.linksByPlatform,
+          isLoadingLinks: false
+        };
+
+        // Extraire les métadonnées depuis entitiesByUniqueId
+        const entities = data.entitiesByUniqueId || {};
+        let bestEntity = null;
+
+        // Chercher l'entité avec le plus d'informations
+        for (const [key, entity] of Object.entries(entities)) {
+          if (entity.title && entity.thumbnailUrl) {
+            bestEntity = entity;
+            // Priorité à Spotify si disponible
+            if (entity.apiProvider === 'spotify') {
+              break;
+            }
+          }
+        }
+
+        // Synchroniser l'avatar de l'artiste si pas encore défini
+        if (bestEntity && bestEntity.thumbnailUrl) {
+          let imageUrl = bestEntity.thumbnailUrl;
+
+          // Vérifier que l'URL est complète et valide
+          if (imageUrl && imageUrl.startsWith('http')) {
+            // Pour Spotify, optimiser la résolution si possible
+            if (bestEntity.apiProvider === 'spotify' && imageUrl.includes('/ab67616d')) {
+              // S'assurer qu'on a le hash complet et pas juste le pattern
+              if (!imageUrl.match(/\/ab67616d[^\/]+\/[a-f0-9]{40}$/)) {
+                // Si pas de hash complet, garder l'URL originale
+                console.log('URL Spotify incomplète, utilisation de l\'originale:', imageUrl);
+              } else {
+                // Remplacer par une résolution plus élevée si on a le hash complet
+                imageUrl = imageUrl.replace(/\/ab67616d[^\/]+\//, '/ab67616d0000b273/');
+              }
+            }
+
+            artistUpdates.avatar = imageUrl;
+            console.log('Avatar URL récupérée:', imageUrl);
+          } else {
+            console.warn('URL d\'avatar invalide ou incomplète:', imageUrl);
+          }
+        }
+
+        // Ajouter le nom de l'artiste si disponible
+        if (bestEntity && bestEntity.artistName && !newArtist.name.trim()) {
+          artistUpdates.name = bestEntity.artistName;
+        }
+
+        setNewArtist(prev => ({
+          ...prev,
+          ...artistUpdates
+        }));
+
+        alert('Informations Spotify récupérées avec succès !');
+      } else {
+        throw new Error('Aucune donnée trouvée pour cette URL');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des liens Odesli:', error);
+
+      let errorMessage = 'Erreur lors de la récupération des informations Spotify';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Timeout - La récupération a pris trop de temps';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = 'URL Spotify non valide ou non trouvée';
+      }
+
+      alert(errorMessage);
+      setNewArtist(prev => ({ ...prev, isLoadingLinks: false }));
+    }
+  };
+
+  // Fonction pour récupérer les liens Odesli en mode édition
+  const fetchOdesliLinksForEdit = async (spotifyUrl) => {
+    if (!spotifyUrl) {
+      alert('Veuillez entrer une URL Spotify valide');
+      return;
+    }
+
+    try {
+      // Timeout après 10 secondes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.linksByPlatform) {
+        let artistUpdates = {
+          odesliLinks: data.linksByPlatform,
+          isLoadingLinks: false
+        };
+
+        // Extraire les métadonnées depuis entitiesByUniqueId
+        const entities = data.entitiesByUniqueId || {};
+        let bestEntity = null;
+
+        // Chercher l'entité avec le plus d'informations
+        for (const [key, entity] of Object.entries(entities)) {
+          if (entity.title && entity.thumbnailUrl) {
+            bestEntity = entity;
+            // Priorité à Spotify si disponible
+            if (entity.apiProvider === 'spotify') {
+              break;
+            }
+          }
+        }
+
+        // Synchroniser l'avatar de l'artiste
+        if (bestEntity && bestEntity.thumbnailUrl) {
+          let imageUrl = bestEntity.thumbnailUrl;
+
+          // Vérifier que l'URL est complète et valide
+          if (imageUrl && imageUrl.startsWith('http')) {
+            // Pour Spotify, optimiser la résolution si possible
+            if (bestEntity.apiProvider === 'spotify' && imageUrl.includes('/ab67616d')) {
+              if (!imageUrl.match(/\/ab67616d[^\/]+\/[a-f0-9]{40}$/)) {
+                console.log('URL Spotify incomplète, utilisation de l\'originale:', imageUrl);
+              } else {
+                imageUrl = imageUrl.replace(/\/ab67616d[^\/]+\//, '/ab67616d0000b273/');
+              }
+            }
+
+            artistUpdates.avatar = imageUrl;
+            console.log('Avatar URL récupérée pour édition:', imageUrl);
+          } else {
+            console.warn('URL d\'avatar invalide ou incomplète:', imageUrl);
+          }
+        }
+
+        setEditingArtist(prev => ({
+          ...prev,
+          ...artistUpdates
+        }));
+
+        alert('Informations Spotify récupérées avec succès !');
+      } else {
+        throw new Error('Aucune donnée trouvée pour cette URL');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des liens Odesli:', error);
+
+      let errorMessage = 'Erreur lors de la récupération des informations Spotify';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Timeout - La récupération a pris trop de temps';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = 'URL Spotify non valide ou non trouvée';
+      }
+
+      alert(errorMessage);
+      setEditingArtist(prev => ({ ...prev, isLoadingLinks: false }));
+    }
+  };
+
   // Fonction pour gérer les connexions cloud
   const handleCloudStorage = async (provider) => {
     setStorageMode(provider);
@@ -158,7 +426,7 @@ const Artists = () => {
     const artist = {
       id: Date.now(),
       ...newArtist,
-      avatar: `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${newArtist.name.charAt(0)}`,
+      avatar: newArtist.avatar || `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${newArtist.name.charAt(0)}`,
       projectsCount: 0,
       createdAt: new Date().toISOString().split('T')[0]
     };
@@ -184,7 +452,10 @@ const Artists = () => {
         audioSamples: [],
         videos: [],
         pressClippings: []
-      }
+      },
+      odesliLinks: null,
+      isLoadingLinks: false,
+      avatar: ""
     });
     setShowCreateForm(false);
   };
@@ -562,6 +833,36 @@ const Artists = () => {
     };
   };
 
+  // Fonction pour éditer un artiste
+  const handleEditArtist = (artist) => {
+    setEditingArtist({
+      ...artist,
+      isLoadingLinks: false
+    });
+    setShowEditForm(true);
+  };
+
+  // Fonction pour mettre à jour un artiste
+  const handleUpdateArtist = (e) => {
+    e.preventDefault();
+
+    if (!editingArtist.name.trim()) {
+      alert('Le nom de l\'artiste est requis');
+      return;
+    }
+
+    const updatedArtists = artists.map(artist =>
+      artist.id === editingArtist.id ? editingArtist : artist
+    );
+
+    setArtists(updatedArtists);
+    localStorage.setItem('presspilot-artists', JSON.stringify(updatedArtists));
+
+    alert(`Artiste "${editingArtist.name}" modifié avec succès !`);
+    setShowEditForm(false);
+    setEditingArtist(null);
+  };
+
   return (
     <Layout title="Artistes" subtitle="Gestion de vos artistes et leurs projets">
       <div className="page-header">
@@ -613,6 +914,66 @@ const Artists = () => {
                   </div>
 
                   <div className="form-group">
+                    <label htmlFor="avatarUpload">Photo de l'artiste</label>
+                    <div className="avatar-upload-section">
+                      <div className="avatar-upload-zone">
+                        <input
+                          type="file"
+                          id="avatarUpload"
+                          accept="image/*"
+                          onChange={(e) => handleAvatarUpload(e, false)}
+                          style={{ display: 'none' }}
+                          disabled={uploadingAvatar}
+                        />
+                        <label htmlFor="avatarUpload" className={`avatar-upload-button ${uploadingAvatar ? 'uploading' : ''}`}>
+                          {uploadingAvatar ? (
+                            <div className="avatar-uploading">
+                              <div className="upload-progress-circle">
+                                <svg viewBox="0 0 100 100">
+                                  <circle cx="50" cy="50" r="45" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+                                  <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    stroke="#0ED894"
+                                    strokeWidth="8"
+                                    fill="none"
+                                    strokeDasharray={`${2 * Math.PI * 45}`}
+                                    strokeDashoffset={`${2 * Math.PI * 45 * (1 - uploadProgress / 100)}`}
+                                    style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                                  />
+                                </svg>
+                                <span className="progress-text">{uploadProgress}%</span>
+                              </div>
+                              <p>Upload en cours...</p>
+                            </div>
+                          ) : newArtist.avatar && !newArtist.avatar.includes('placeholder') ? (
+                            <img src={newArtist.avatar} alt="Avatar de l'artiste" className="avatar-preview" />
+                          ) : (
+                            <div className="avatar-placeholder">
+                              <span>📷</span>
+                              <p>Cliquer pour uploader une photo</p>
+                              <small>JPG, PNG • Max 10MB</small>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                      {newArtist.avatar && !newArtist.avatar.includes('placeholder') && (
+                        <button
+                          type="button"
+                          className="btn-tertiary remove-avatar-btn"
+                          onClick={() => setNewArtist({...newArtist, avatar: ''})}
+                        >
+                          Supprimer la photo
+                        </button>
+                      )}
+                    </div>
+                    <p className="form-helper">
+                      Vous pouvez uploader une photo ou récupérer automatiquement l'image depuis Spotify
+                    </p>
+                  </div>
+
+                  <div className="form-group">
                     <label htmlFor="label">Label / Maison de disques</label>
                     <input
                       type="text"
@@ -656,16 +1017,29 @@ const Artists = () => {
 
                       <div className="form-group">
                         <label htmlFor="spotify">Spotify</label>
-                        <input
-                          type="url"
-                          id="spotify"
-                          value={newArtist.socialLinks.spotify}
-                          onChange={(e) => setNewArtist({
-                            ...newArtist,
-                            socialLinks: {...newArtist.socialLinks, spotify: e.target.value}
-                          })}
-                          placeholder="https://open.spotify.com/artist/..."
-                        />
+                        <div className="url-input-group">
+                          <input
+                            type="url"
+                            id="spotify"
+                            value={newArtist.socialLinks.spotify}
+                            onChange={(e) => setNewArtist({
+                              ...newArtist,
+                              socialLinks: {...newArtist.socialLinks, spotify: e.target.value}
+                            })}
+                            placeholder="https://open.spotify.com/artist/..."
+                          />
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => fetchOdesliLinks(newArtist.socialLinks.spotify)}
+                            disabled={!newArtist.socialLinks.spotify || newArtist.isLoadingLinks}
+                          >
+                            {newArtist.isLoadingLinks ? 'Chargement...' : 'Récupérer infos'}
+                          </button>
+                        </div>
+                        <p className="form-helper">
+                          Collez l'URL Spotify de l'artiste pour récupérer automatiquement photo et informations
+                        </p>
                       </div>
 
                       <div className="form-group">
@@ -682,6 +1056,35 @@ const Artists = () => {
                         />
                       </div>
                     </div>
+
+                    {newArtist.avatar && !newArtist.avatar.includes('placeholder') && (
+                      <div className="form-group">
+                        <label>Aperçu de l'avatar synchronisé</label>
+                        <div className="cover-preview">
+                          <img src={newArtist.avatar} alt="Avatar de l'artiste" className="cover-image" />
+                          <div className="cover-info">
+                            <p>✅ Photo importée depuis Spotify</p>
+                            <p className="cover-url">{newArtist.avatar}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {newArtist.odesliLinks && (
+                      <div className="form-group">
+                        <label>Liens plateformes générés</label>
+                        <div className="platforms-grid">
+                          {Object.entries(newArtist.odesliLinks).map(([platform, data]) => (
+                            <div key={platform} className="platform-link">
+                              <span className="platform-name">{platform}</span>
+                              <a href={data.url} target="_blank" rel="noopener noreferrer" className="platform-url">
+                                {data.url.length > 40 ? data.url.substring(0, 40) + '...' : data.url}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-section">
@@ -907,6 +1310,229 @@ const Artists = () => {
             </section>
           )}
 
+          {showEditForm && editingArtist && (
+            <section className="dashboard-section">
+              <div className="campaigns-section">
+                <div className="section-header">
+                  <h2 className="chart-title">Modifier l'artiste : {editingArtist.name}</h2>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShowEditForm(false);
+                      setEditingArtist(null);
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+
+                <form onSubmit={handleUpdateArtist} className="campaign-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="editName">Nom de l'artiste *</label>
+                      <input
+                        type="text"
+                        id="editName"
+                        value={editingArtist.name}
+                        onChange={(e) => setEditingArtist({...editingArtist, name: e.target.value})}
+                        placeholder="Ex: Dadju"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="editGenre">Genre musical</label>
+                      <input
+                        type="text"
+                        id="editGenre"
+                        value={editingArtist.genre || ''}
+                        onChange={(e) => setEditingArtist({...editingArtist, genre: e.target.value})}
+                        placeholder="Ex: R&B, Pop, Rap..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="editAvatarUpload">Photo de l'artiste</label>
+                    <div className="avatar-upload-section">
+                      <div className="avatar-upload-zone">
+                        <input
+                          type="file"
+                          id="editAvatarUpload"
+                          accept="image/*"
+                          onChange={(e) => handleAvatarUpload(e, true)}
+                          style={{ display: 'none' }}
+                          disabled={uploadingAvatar}
+                        />
+                        <label htmlFor="editAvatarUpload" className={`avatar-upload-button ${uploadingAvatar ? 'uploading' : ''}`}>
+                          {uploadingAvatar ? (
+                            <div className="avatar-uploading">
+                              <div className="upload-progress-circle">
+                                <svg viewBox="0 0 100 100">
+                                  <circle cx="50" cy="50" r="45" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+                                  <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    stroke="#0ED894"
+                                    strokeWidth="8"
+                                    fill="none"
+                                    strokeDasharray={`${2 * Math.PI * 45}`}
+                                    strokeDashoffset={`${2 * Math.PI * 45 * (1 - uploadProgress / 100)}`}
+                                    style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                                  />
+                                </svg>
+                                <span className="progress-text">{uploadProgress}%</span>
+                              </div>
+                              <p>Upload en cours...</p>
+                            </div>
+                          ) : editingArtist.avatar && !editingArtist.avatar.includes('placeholder') ? (
+                            <img src={editingArtist.avatar} alt="Avatar de l'artiste" className="avatar-preview" />
+                          ) : (
+                            <div className="avatar-placeholder">
+                              <span>📷</span>
+                              <p>Cliquer pour uploader une photo</p>
+                              <small>JPG, PNG • Max 10MB</small>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                      {editingArtist.avatar && !editingArtist.avatar.includes('placeholder') && (
+                        <button
+                          type="button"
+                          className="btn-tertiary remove-avatar-btn"
+                          onClick={() => setEditingArtist({...editingArtist, avatar: ''})}
+                        >
+                          Supprimer la photo
+                        </button>
+                      )}
+                    </div>
+                    <p className="form-helper">
+                      Vous pouvez uploader une photo ou récupérer automatiquement l'image depuis Spotify
+                    </p>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="editLabel">Label / Maison de disques</label>
+                    <input
+                      type="text"
+                      id="editLabel"
+                      value={editingArtist.label || ''}
+                      onChange={(e) => setEditingArtist({...editingArtist, label: e.target.value})}
+                      placeholder="Ex: Universal Music, Sony Music..."
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="editBiography">Biographie courte</label>
+                    <textarea
+                      id="editBiography"
+                      value={editingArtist.biography || ''}
+                      onChange={(e) => setEditingArtist({...editingArtist, biography: e.target.value})}
+                      placeholder="Biographie courte pour la presse (2-3 phrases maximum)..."
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="form-section">
+                    <h3>Réseaux sociaux</h3>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="editInstagram">Instagram</label>
+                        <input
+                          type="url"
+                          id="editInstagram"
+                          value={editingArtist.socialLinks?.instagram || ''}
+                          onChange={(e) => setEditingArtist({
+                            ...editingArtist,
+                            socialLinks: {...(editingArtist.socialLinks || {}), instagram: e.target.value}
+                          })}
+                          placeholder="https://instagram.com/username"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="editSpotify">Spotify</label>
+                        <div className="url-input-group">
+                          <input
+                            type="url"
+                            id="editSpotify"
+                            value={editingArtist.socialLinks?.spotify || ''}
+                            onChange={(e) => setEditingArtist({
+                              ...editingArtist,
+                              socialLinks: {...(editingArtist.socialLinks || {}), spotify: e.target.value}
+                            })}
+                            placeholder="https://open.spotify.com/artist/..."
+                          />
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              const spotifyUrl = editingArtist.socialLinks?.spotify;
+                              if (!spotifyUrl) {
+                                alert('Veuillez entrer une URL Spotify valide');
+                                return;
+                              }
+                              // Adapter la fonction pour l'édition
+                              setEditingArtist(prev => ({ ...prev, isLoadingLinks: true }));
+                              fetchOdesliLinksForEdit(spotifyUrl);
+                            }}
+                            disabled={!editingArtist.socialLinks?.spotify || editingArtist.isLoadingLinks}
+                          >
+                            {editingArtist.isLoadingLinks ? 'Chargement...' : 'Récupérer infos'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="editYoutube">YouTube</label>
+                        <input
+                          type="url"
+                          id="editYoutube"
+                          value={editingArtist.socialLinks?.youtube || ''}
+                          onChange={(e) => setEditingArtist({
+                            ...editingArtist,
+                            socialLinks: {...(editingArtist.socialLinks || {}), youtube: e.target.value}
+                          })}
+                          placeholder="https://youtube.com/@channel"
+                        />
+                      </div>
+                    </div>
+
+                    {editingArtist.avatar && !editingArtist.avatar.includes('placeholder') && (
+                      <div className="form-group">
+                        <label>Avatar actuel</label>
+                        <div className="cover-preview">
+                          <img src={editingArtist.avatar} alt="Avatar de l'artiste" className="cover-image" />
+                          <div className="cover-info">
+                            <p>✅ Avatar de l'artiste</p>
+                            <p className="cover-url">{editingArtist.avatar}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="submit" className="btn-primary">
+                      Mettre à jour l'artiste
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setShowEditForm(false);
+                        setEditingArtist(null);
+                      }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </section>
+          )}
+
           <section className="dashboard-section">
             <div className="artists-grid">
               {artists.map((artist) => (
@@ -940,7 +1566,10 @@ const Artists = () => {
                     >
                       Rapport
                     </button>
-                    <button className="btn-tertiary">
+                    <button
+                      className="btn-tertiary"
+                      onClick={() => handleEditArtist(artist)}
+                    >
                       Modifier
                     </button>
                   </div>

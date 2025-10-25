@@ -224,15 +224,17 @@ export const AuthProvider = ({ children }) => {
 
         console.log('📱 Storage check:', { hasToken: !!token, hasUser: !!user });
 
-        if (token && isTokenValid(token) && user) {
-          // Si nous avons un token valide et des données utilisateur, les utiliser directement
-          console.log('✅ Valid token and user data found in storage');
+        if (token && user) {
+          // Si nous avons un token et des données utilisateur, les utiliser directement
+          console.log('✅ Token and user data found in storage');
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
             payload: { token, user }
           });
 
-          // Optionnellement, vérifier avec le serveur en arrière-plan (sans bloquer)
+          // Désactiver temporairement la vérification serveur pour éviter les loops
+          // TODO: Réactiver quand le backend sera stable
+          /*
           api.get('/api/auth/me')
             .then(response => {
               if (response.data.success) {
@@ -247,6 +249,7 @@ export const AuthProvider = ({ children }) => {
             .catch(error => {
               console.warn('⚠️ Background verification failed, continuing with cached data:', error.message);
             });
+          */
         } else {
           // Token invalide ou inexistant
           console.log('🚫 No valid token found');

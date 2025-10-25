@@ -2,7 +2,7 @@ import axios from "axios";
 import authService from './utils/authService';
 
 // URL de ton backend Railway
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Configuration d'axios avec interceptors pour l'authentification
 const api = axios.create({

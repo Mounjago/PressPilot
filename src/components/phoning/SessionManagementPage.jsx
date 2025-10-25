@@ -29,16 +29,11 @@ const SessionManagementPage = ({ session, onBack, onSessionUpdate }) => {
 
   const loadSessionData = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/call-sessions/${sessionData._id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Charger la session depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      const updatedSession = allSessions.find(s => s._id === sessionData._id);
 
-      if (response.ok) {
-        const updatedSession = await response.json();
+      if (updatedSession) {
         setSessionData(updatedSession);
         onSessionUpdate?.(updatedSession);
       }
@@ -82,24 +77,64 @@ const SessionManagementPage = ({ session, onBack, onSessionUpdate }) => {
         ...callData,
         comments,
         outcome,
-        journalistFeedback
+        journalistFeedback,
+        id: Date.now().toString(), // Générer un ID unique pour l'appel
+        recordedAt: new Date().toISOString()
       };
 
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/call-sessions/${sessionData._id}/calls`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(finalCallData)
-      });
+      // Charger toutes les sessions depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      const sessionIndex = allSessions.findIndex(s => s._id === sessionData._id);
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de l\'enregistrement de l\'appel');
+      if (sessionIndex === -1) {
+        throw new Error('Session non trouvée');
       }
 
-      const updatedSession = await response.json();
+      // Ajouter l'appel à la session
+      const updatedSession = { ...allSessions[sessionIndex] };
+      if (!updatedSession.callLogs) {
+        updatedSession.callLogs = [];
+      }
+      updatedSession.callLogs.push(finalCallData);
+
+      // Mettre à jour les statistiques de la session
+      const answeredCall = finalCallData.status === 'answered';
+      updatedSession.stats = {
+        ...updatedSession.stats,
+        totalCalls: (updatedSession.stats?.totalCalls || 0) + 1,
+        answeredCalls: (updatedSession.stats?.answeredCalls || 0) + (answeredCall ? 1 : 0),
+        totalDuration: (updatedSession.stats?.totalDuration || 0) + (finalCallData.duration || 0)
+      };
+
+      // Calculer le taux de succès
+      if (updatedSession.stats.totalCalls > 0) {
+        updatedSession.successRate = Math.round((updatedSession.stats.answeredCalls / updatedSession.stats.totalCalls) * 100);
+      }
+
+      // Marquer le contact comme appelé
+      if (updatedSession.targetContacts) {
+        updatedSession.targetContacts = updatedSession.targetContacts.map(tc => {
+          if (tc.contactId._id === finalCallData.contactId || tc.contactId === finalCallData.contactId) {
+            return { ...tc, status: 'called', lastCallAt: new Date().toISOString() };
+          }
+          return tc;
+        });
+      }
+
+      // Sauvegarder dans la liste générale des sessions
+      allSessions[sessionIndex] = updatedSession;
+      localStorage.setItem('presspilot-all-sessions', JSON.stringify(allSessions));
+
+      // Sauvegarder aussi dans les sessions du projet spécifique
+      if (updatedSession.projectId) {
+        const projectSessions = JSON.parse(localStorage.getItem(`presspilot-sessions-${updatedSession.projectId}`) || '[]');
+        const projectSessionIndex = projectSessions.findIndex(s => s._id === sessionData._id);
+        if (projectSessionIndex !== -1) {
+          projectSessions[projectSessionIndex] = updatedSession;
+          localStorage.setItem(`presspilot-sessions-${updatedSession.projectId}`, JSON.stringify(projectSessions));
+        }
+      }
+
       setSessionData(updatedSession);
       onSessionUpdate?.(updatedSession);
 
@@ -171,20 +206,35 @@ const SessionManagementPage = ({ session, onBack, onSessionUpdate }) => {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/call-sessions/${sessionData._id}/complete`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Charger toutes les sessions depuis localStorage
+      const allSessions = JSON.parse(localStorage.getItem('presspilot-all-sessions') || '[]');
+      const sessionIndex = allSessions.findIndex(s => s._id === sessionData._id);
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la finalisation de la session');
+      if (sessionIndex === -1) {
+        throw new Error('Session non trouvée');
       }
 
-      const updatedSession = await response.json();
+      // Marquer la session comme terminée
+      const updatedSession = {
+        ...allSessions[sessionIndex],
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      };
+
+      // Sauvegarder dans la liste générale des sessions
+      allSessions[sessionIndex] = updatedSession;
+      localStorage.setItem('presspilot-all-sessions', JSON.stringify(allSessions));
+
+      // Sauvegarder aussi dans les sessions du projet spécifique
+      if (updatedSession.projectId) {
+        const projectSessions = JSON.parse(localStorage.getItem(`presspilot-sessions-${updatedSession.projectId}`) || '[]');
+        const projectSessionIndex = projectSessions.findIndex(s => s._id === sessionData._id);
+        if (projectSessionIndex !== -1) {
+          projectSessions[projectSessionIndex] = updatedSession;
+          localStorage.setItem(`presspilot-sessions-${updatedSession.projectId}`, JSON.stringify(projectSessions));
+        }
+      }
+
       setSessionData(updatedSession);
       onSessionUpdate?.(updatedSession);
 

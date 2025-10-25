@@ -17,26 +17,18 @@ const ProjectSelectionPage = ({ artist, onSelectProject, onBack }) => {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Récupérer les projets de cet artiste depuis localStorage
+      const savedProjects = localStorage.getItem(`presspilot-projects-${artist.id}`);
+      let artistProjects = [];
 
-      if (!response.ok) {
-        throw new Error('Erreur lors du chargement des projets');
+      if (savedProjects) {
+        artistProjects = JSON.parse(savedProjects);
       }
-
-      const allProjects = await response.json();
-
-      // Filtrer les projets de l'artiste sélectionné
-      const artistProjects = allProjects.filter(project => project.artist === artist.name);
 
       setProjects(artistProjects);
     } catch (error) {
       console.error('Erreur lors du chargement des projets:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }

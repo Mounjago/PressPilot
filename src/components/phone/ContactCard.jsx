@@ -125,14 +125,25 @@ const ContactCard = ({
     }
   };
 
-  const getContactInitials = (name) => {
-    if (!name) return '?';
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const getContactInitials = (contact) => {
+    if (contact.firstName && contact.lastName) {
+      return (contact.firstName.charAt(0) + contact.lastName.charAt(0)).toUpperCase();
+    } else if (contact.name) {
+      return contact.name
+        .split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return '?';
+  };
+
+  const getContactName = (contact) => {
+    if (contact.firstName || contact.lastName) {
+      return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+    }
+    return contact.name || 'Sans nom';
   };
 
   return (
@@ -145,7 +156,7 @@ const ContactCard = ({
               <img src={contact.avatar} alt={contact.name} />
             ) : (
               <div className="contact-avatar-placeholder">
-                {getContactInitials(contact.name)}
+                {getContactInitials(contact)}
               </div>
             )}
             {lastCall && (
@@ -211,7 +222,7 @@ const ContactCard = ({
       {/* Informations principales */}
       <div className="contact-card-content" onClick={onSelect}>
         <div className="contact-main-info">
-          <h3 className="contact-name">{contact.name || 'Sans nom'}</h3>
+          <h3 className="contact-name">{getContactName(contact)}</h3>
 
           {contact.title && (
             <span className="contact-title">{contact.title}</span>

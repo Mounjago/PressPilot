@@ -328,12 +328,23 @@ const Contacts = () => {
                     onSubmit={async (e) => {
                       e.preventDefault();
                       const formData = new FormData(e.target);
+
+                      // Séparer le nom complet en prénom et nom
+                      const fullName = formData.get('name').trim();
+                      const nameParts = fullName.split(' ');
+                      const firstName = nameParts[0] || '';
+                      const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
+
                       const contactData = {
-                        name: formData.get('name'),
+                        firstName: firstName,
+                        lastName: lastName,
                         email: formData.get('email'),
                         phone: formData.get('phone'),
-                        company: formData.get('company'),
-                        title: formData.get('title'),
+                        jobTitle: formData.get('jobTitle'),
+                        media: {
+                          name: formData.get('company'),
+                          type: formData.get('mediaType') || 'web'
+                        },
                         notes: formData.get('notes')
                       };
 
@@ -341,35 +352,50 @@ const Contacts = () => {
                         await contactsApi.create(contactData);
                         await loadContacts();
                         setShowContactModal(false);
+                        e.target.reset();
                       } catch (error) {
                         console.error('Erreur création contact:', error);
-                        alert('Erreur lors de la création du contact');
+                        alert('Erreur lors de la création du contact. Vérifiez que tous les champs requis sont remplis.');
                       }
                     }}
                   >
                     <div className="form-group">
-                      <label>Nom *</label>
-                      <input type="text" name="name" required />
+                      <label>Nom complet *</label>
+                      <input type="text" name="name" placeholder="Prénom Nom" required />
                     </div>
                     <div className="form-group">
-                      <label>Email</label>
-                      <input type="email" name="email" />
+                      <label>Email *</label>
+                      <input type="email" name="email" placeholder="email@exemple.com" required />
                     </div>
                     <div className="form-group">
                       <label>Téléphone</label>
-                      <input type="tel" name="phone" />
+                      <input type="tel" name="phone" placeholder="+33 6 12 34 56 78" />
                     </div>
                     <div className="form-group">
-                      <label>Entreprise</label>
-                      <input type="text" name="company" />
+                      <label>Média / Entreprise</label>
+                      <input type="text" name="company" placeholder="Le Monde, Radio France..." />
+                    </div>
+                    <div className="form-group">
+                      <label>Type de média</label>
+                      <select name="mediaType">
+                        <option value="web">Web</option>
+                        <option value="journal">Journal</option>
+                        <option value="magazine">Magazine</option>
+                        <option value="radio">Radio</option>
+                        <option value="tv">TV</option>
+                        <option value="blog">Blog</option>
+                        <option value="podcast">Podcast</option>
+                        <option value="influencer">Influenceur</option>
+                        <option value="autre">Autre</option>
+                      </select>
                     </div>
                     <div className="form-group">
                       <label>Fonction</label>
-                      <input type="text" name="title" />
+                      <input type="text" name="jobTitle" placeholder="Journaliste, Rédacteur en chef..." />
                     </div>
                     <div className="form-group">
                       <label>Notes</label>
-                      <textarea name="notes" rows="3"></textarea>
+                      <textarea name="notes" rows="3" placeholder="Informations complémentaires..."></textarea>
                     </div>
                     <div className="modal-actions">
                       <button type="button" className="btn-secondary" onClick={() => setShowContactModal(false)}>

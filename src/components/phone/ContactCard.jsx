@@ -40,22 +40,35 @@ const ContactCard = ({
 
   // Chargement des informations d'appel
   useEffect(() => {
-    loadCallInfo();
-  }, [contact.id]);
+    let isMounted = true;
 
-  const loadCallInfo = async () => {
-    try {
-      const calls = await callsApi.getCallsByContact(contact.id);
+    const loadCallInfo = async () => {
+      try {
+        const calls = await callsApi.getCallsByContact(contact.id);
 
-      if (calls && calls.length > 0) {
-        setLastCall(calls[0]); // Le plus récent
-        setCallCount(calls.length);
+        if (isMounted && calls && calls.length > 0) {
+          setLastCall(calls[0]); // Le plus récent
+          setCallCount(calls.length);
+        }
+      } catch (error) {
+        // Fallback silencieux - les infos d'appel ne sont pas critiques
+        console.debug('Pas d\'historique d\'appel pour ce contact');
+        if (isMounted) {
+          setLastCall(null);
+          setCallCount(0);
+        }
       }
-    } catch (error) {
-      // Fallback silencieux - les infos d'appel ne sont pas critiques
-      console.debug('Pas d\'historique d\'appel pour ce contact');
+    };
+
+    // Uniquement charger si l'ID du contact existe
+    if (contact.id) {
+      loadCallInfo();
     }
-  };
+
+    return () => {
+      isMounted = false;
+    };
+  }, [contact.id]);
 
   const handlePhoneClick = () => {
     if (onCall) {
@@ -66,12 +79,12 @@ const ContactCard = ({
 
   const handleCallStart = (call) => {
     setIsPhoneActive(true);
-    loadCallInfo(); // Refresh pour le nouvel appel
+    // Pas de rechargement automatique pour éviter les boucles
   };
 
   const handleCallEnd = (call) => {
     setIsPhoneActive(false);
-    loadCallInfo(); // Refresh après l'appel
+    // Pas de rechargement automatique pour éviter les boucles
   };
 
   const formatLastCallDate = (dateString) => {

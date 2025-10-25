@@ -13,7 +13,6 @@ import ContactCard from "../components/phone/ContactCard";
 import PhoneSystem from "../components/phone/PhoneSystem";
 import CallHistory from "../components/phone/CallHistory";
 import CallModal from "../components/phone/CallModal";
-import JournalistImporter from "../components/JournalistImporter";
 import ringoverService from "../services/ringoverService";
 
 const Contacts = () => {
@@ -28,8 +27,8 @@ const Contacts = () => {
   const [showCallModal, setShowCallModal] = useState(false);
   const [isCallModalMinimized, setIsCallModalMinimized] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showImporter, setShowImporter] = useState(false);
   const [showCsvImporter, setShowCsvImporter] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
 
   // Chargement des contacts
@@ -146,19 +145,15 @@ const Contacts = () => {
       <div className="contacts-actions">
             <button
               className="btn-secondary"
-              onClick={() => setShowImporter(true)}
-              style={{ marginRight: '10px' }}
-            >
-              📻 Importer journalistes FR
-            </button>
-            <button
-              className="btn-secondary"
               onClick={() => setShowCsvImporter(true)}
               style={{ marginRight: '10px' }}
             >
-              📁 Importer CSV/Excel
+              📁 Importer
             </button>
-            <button className="btn-primary">
+            <button
+              className="btn-primary"
+              onClick={() => setShowContactModal(true)}
+            >
               <Plus />
               Nouveau contact
             </button>
@@ -287,20 +282,6 @@ const Contacts = () => {
           />
         )}
 
-        {/* Modal d'import journalistes */}
-        <AnimatePresence>
-          {showImporter && (
-            <JournalistImporter
-              onClose={() => setShowImporter(false)}
-              onImportComplete={(importData) => {
-                // Recharger les contacts après l'import
-                loadContacts();
-                setShowImporter(false);
-              }}
-            />
-          )}
-        </AnimatePresence>
-
         {/* Modal d'import CSV/Excel */}
         <AnimatePresence>
           {showCsvImporter && (
@@ -312,6 +293,96 @@ const Contacts = () => {
                 setShowCsvImporter(false);
               }}
             />
+          )}
+        </AnimatePresence>
+
+        {/* Modal de création de contact */}
+        <AnimatePresence>
+          {showContactModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="modal-overlay"
+              onClick={() => setShowContactModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="modal-content"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '500px', width: '90%' }}
+              >
+                <div className="modal-header">
+                  <h2>Nouveau contact</h2>
+                  <button
+                    className="modal-close"
+                    onClick={() => setShowContactModal(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.target);
+                      const contactData = {
+                        name: formData.get('name'),
+                        email: formData.get('email'),
+                        phone: formData.get('phone'),
+                        company: formData.get('company'),
+                        title: formData.get('title'),
+                        notes: formData.get('notes')
+                      };
+
+                      try {
+                        await contactsApi.create(contactData);
+                        await loadContacts();
+                        setShowContactModal(false);
+                      } catch (error) {
+                        console.error('Erreur création contact:', error);
+                        alert('Erreur lors de la création du contact');
+                      }
+                    }}
+                  >
+                    <div className="form-group">
+                      <label>Nom *</label>
+                      <input type="text" name="name" required />
+                    </div>
+                    <div className="form-group">
+                      <label>Email</label>
+                      <input type="email" name="email" />
+                    </div>
+                    <div className="form-group">
+                      <label>Téléphone</label>
+                      <input type="tel" name="phone" />
+                    </div>
+                    <div className="form-group">
+                      <label>Entreprise</label>
+                      <input type="text" name="company" />
+                    </div>
+                    <div className="form-group">
+                      <label>Fonction</label>
+                      <input type="text" name="title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Notes</label>
+                      <textarea name="notes" rows="3"></textarea>
+                    </div>
+                    <div className="modal-actions">
+                      <button type="button" className="btn-secondary" onClick={() => setShowContactModal(false)}>
+                        Annuler
+                      </button>
+                      <button type="submit" className="btn-primary">
+                        Créer le contact
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
     </Layout>

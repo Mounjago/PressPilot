@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../styles/Dashboard.css";
-import axios from "axios";
+import { campaignsApi } from "../api";
 
 const CampaignList = () => {
   const [campaigns, setCampaigns] = useState([]);
@@ -8,19 +8,35 @@ const CampaignList = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchCampaigns = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/campaigns`);
-        setCampaigns(res.data);
+        setLoading(true);
+        const response = await campaignsApi.getAll();
+
+        if (isMounted) {
+          setCampaigns(response.campaigns || []);
+          setError("");
+        }
       } catch (err) {
         console.error("Erreur lors du chargement des campagnes :", err);
-        setError("Impossible de charger les campagnes.");
+        if (isMounted) {
+          setError("Impossible de charger les campagnes.");
+          setCampaigns([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCampaigns();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) return <div className="campaigns-section">Chargement des campagnes...</div>;

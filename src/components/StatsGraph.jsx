@@ -28,7 +28,19 @@ const StatsGraph = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadChartData();
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (isMounted) {
+        await loadChartData();
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadChartData = async () => {

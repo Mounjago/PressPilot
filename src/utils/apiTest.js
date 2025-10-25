@@ -18,7 +18,7 @@ class ApiTester {
     console.log('🔍 Test de connectivité backend...');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/health`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3535'}/health`);
       const data = await response.json();
 
       this.results.backend = {

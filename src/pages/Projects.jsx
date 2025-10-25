@@ -59,9 +59,9 @@ const Projects = () => {
     setNewProject(prev => ({ ...prev, isLoadingLinks: true }));
 
     try {
-      // Timeout après 10 secondes
+      // Timeout après 30 secondes
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
       const response = await fetch('http://localhost:3535/odesli/links', {
@@ -167,7 +167,7 @@ const Projects = () => {
 
       let errorMessage = 'Erreur lors de la récupération des informations Spotify';
       if (error.name === 'AbortError') {
-        errorMessage = 'Timeout - La récupération a pris trop de temps';
+        errorMessage = 'Timeout - La récupération a pris trop de temps (plus de 30 secondes)';
       } else if (error.message.includes('HTTP')) {
         errorMessage = 'URL Spotify non valide ou non trouvée';
       }
@@ -254,9 +254,9 @@ const Projects = () => {
     setEditingProject(prev => ({ ...prev, isLoadingLinks: true }));
 
     try {
-      // Timeout après 10 secondes
+      // Timeout après 30 secondes
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
       const response = await fetch('http://localhost:3535/odesli/links', {
@@ -337,7 +337,7 @@ const Projects = () => {
 
       let errorMessage = 'Erreur lors de la récupération des informations Spotify';
       if (error.name === 'AbortError') {
-        errorMessage = 'Timeout - La récupération a pris trop de temps';
+        errorMessage = 'Timeout - La récupération a pris trop de temps (plus de 30 secondes)';
       } else if (error.message.includes('HTTP')) {
         errorMessage = 'URL Spotify non valide ou non trouvée';
       }

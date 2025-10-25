@@ -506,22 +506,15 @@ const Campaigns = () => {
   // Si on a des paramètres mais pas de données, afficher l'erreur
   if ((artistId && projectId) && (!artist || !project)) {
     return (
-      <div className="dashboard">
-        <Sidebar />
-        <main className="main-content">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">CAMPAGNES</h1>
-            <p className="dashboard-subtitle">Erreur de chargement</p>
-          </div>
-          <div className="error-state">
-            <h3>Erreur</h3>
-            <p>Impossible de charger les données de l'artiste ou du projet.</p>
-            <button onClick={() => navigate('/artists')} className="btn-secondary">
-              Retour aux artistes
-            </button>
-          </div>
-        </main>
-      </div>
+      <Layout title="CAMPAGNES" subtitle="Erreur de chargement">
+        <div className="error-state">
+          <h3>Erreur</h3>
+          <p>Impossible de charger les données de l'artiste ou du projet.</p>
+          <button onClick={() => navigate('/artists')} className="btn-secondary">
+            Retour aux artistes
+          </button>
+        </div>
+      </Layout>
     );
   }
 

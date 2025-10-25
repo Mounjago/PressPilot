@@ -4,10 +4,9 @@ import "../styles/Dashboard.css";
 import "../styles/DashboardExtended.css";
 import "../styles/ContactsNew.css";
 import "../styles/Projects.css";
-import logo from "../assets/logo-bandstream.png";
 
 // Composants
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 import ProjectModal from "../components/ProjectModal";
 
 const ProjectsNew = () => {
@@ -174,25 +173,7 @@ const ProjectsNew = () => {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">{getInitials(user?.name || user?.email)}</div>
-        </div>
-      </header>
-
-      <div className="dashboard-body">
-        <Sidebar />
-
-        <main className="dashboard-main">
-          <div className="dashboard-header-content">
-            <h1 className="dashboard-title">Projets</h1>
-            <p className="dashboard-subtitle">Gérez vos projets musicaux et leurs campagnes</p>
-          </div>
+    <Layout title="Projets" subtitle="Gérez vos projets musicaux et leurs campagnes">
 
           {/* Statistiques des projets */}
           <section className="stats-grid">
@@ -459,8 +440,6 @@ const ProjectsNew = () => {
               </div>
             )}
           </section>
-        </main>
-      </div>
 
       {/* Modal de création/édition */}
       {showCreateModal && (
@@ -490,7 +469,7 @@ const ProjectsNew = () => {
           }}
         />
       )}
-    </div>
+    </Layout>
   );
 };
 

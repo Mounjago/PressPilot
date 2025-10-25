@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import logo from "../assets/logo-bandstream.png";
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 
 const Projects = () => {
   const { artistId } = useParams();
@@ -150,41 +149,23 @@ const Projects = () => {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">JP</div>
-        </div>
-      </header>
+    <Layout title={`Projets - ${artist.name}`} subtitle={artist.genre}>
+      <div className="breadcrumb">
+        <button onClick={() => navigate('/artists')} className="breadcrumb-link">
+          Artistes
+        </button>
+        <span className="breadcrumb-separator">›</span>
+        <span className="breadcrumb-current">{artist.name}</span>
+      </div>
 
-      <div className="dashboard-body">
-        <Sidebar />
-
-        <main className="dashboard-main">
-          <div className="breadcrumb">
-            <button onClick={() => navigate('/artists')} className="breadcrumb-link">
-              Artistes
-            </button>
-            <span className="breadcrumb-separator">›</span>
-            <span className="breadcrumb-current">{artist.name}</span>
-          </div>
-
-          <div className="page-header">
-            <div>
-              <h1 className="dashboard-title">Projets - {artist.name}</h1>
-              <p className="page-subtitle">{artist.genre}</p>
-            </div>
-            <button
-              className="btn-primary"
-              onClick={() => setShowCreateForm(true)}
-            >
-              + Nouveau projet
-            </button>
-          </div>
+      <div className="page-header">
+        <button
+          className="btn-primary"
+          onClick={() => setShowCreateForm(true)}
+        >
+          + Nouveau projet
+        </button>
+      </div>
 
           {showCreateForm && (
             <section className="dashboard-section">
@@ -383,9 +364,7 @@ const Projects = () => {
               ))}
             </div>
           </section>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

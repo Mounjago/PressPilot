@@ -16,10 +16,9 @@ import "../styles/Dashboard.css";
 import "../styles/DashboardExtended.css";
 import "../styles/ContactsNew.css";
 import "../styles/Analytics.css";
-import logo from "../assets/logo-bandstream.png";
 
 // Composants
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 import { analyticsApi } from "../api";
 
 ChartJS.register(
@@ -221,44 +220,23 @@ const AnalyticsNew = () => {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">{getInitials(user?.name || user?.email)}</div>
-        </div>
-      </header>
-
-      <div className="dashboard-body">
-        <Sidebar />
-
-        <main className="dashboard-main">
-          <div className="analytics-header">
-            <div className="dashboard-header-content">
-              <h1 className="dashboard-title">Analytics</h1>
-              <p className="dashboard-subtitle">Analysez les performances de vos campagnes</p>
-            </div>
-
-            <div className="analytics-controls">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="period-select"
-              >
-                <option value="7d">7 derniers jours</option>
-                <option value="30d">30 derniers jours</option>
-                <option value="90d">3 derniers mois</option>
-                <option value="1y">Dernière année</option>
-              </select>
-              <button className="btn-secondary">
-                <Download size={16} />
-                Exporter
-              </button>
-            </div>
-          </div>
+    <Layout title="Analytics" subtitle="Analysez les performances de vos campagnes">
+      <div className="analytics-controls">
+        <select
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+          className="period-select"
+        >
+          <option value="7d">7 derniers jours</option>
+          <option value="30d">30 derniers jours</option>
+          <option value="90d">3 derniers mois</option>
+          <option value="1y">Dernière année</option>
+        </select>
+        <button className="btn-secondary">
+          <Download size={16} />
+          Exporter
+        </button>
+      </div>
 
           {loading ? (
             <div className="contacts-loading">
@@ -420,9 +398,7 @@ const AnalyticsNew = () => {
               </section>
             </>
           )}
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

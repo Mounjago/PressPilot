@@ -5,10 +5,9 @@ import "../styles/Dashboard.css";
 import "../styles/DashboardExtended.css";
 import "../styles/ContactsNew.css";
 import "../styles/Campaigns.css";
-import logo from "../assets/logo-bandstream.png";
 
 // Composants
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 import CampaignModal from "../components/CampaignModal";
 
 const CampaignsNew = () => {
@@ -169,25 +168,7 @@ const CampaignsNew = () => {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">{getInitials(user?.name || user?.email)}</div>
-        </div>
-      </header>
-
-      <div className="dashboard-body">
-        <Sidebar />
-
-        <main className="dashboard-main">
-          <div className="dashboard-header-content">
-            <h1 className="dashboard-title">Campagnes</h1>
-            <p className="dashboard-subtitle">Gérez vos campagnes de relations presse</p>
-          </div>
+    <Layout title="Campagnes" subtitle="Gérez vos campagnes de relations presse">
 
           {/* Statistiques des campagnes */}
           <section className="stats-grid">
@@ -387,8 +368,6 @@ const CampaignsNew = () => {
               </div>
             )}
           </section>
-        </main>
-      </div>
 
       {/* Modal de création/édition */}
       {showCreateModal && (
@@ -418,7 +397,7 @@ const CampaignsNew = () => {
           }}
         />
       )}
-    </div>
+    </Layout>
   );
 };
 

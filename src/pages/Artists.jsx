@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import logo from "../assets/logo-bandstream.png";
-import Sidebar from "../components/Sidebar";
+import Layout from "../components/Layout";
 
 const Artists = () => {
   const navigate = useNavigate();
@@ -195,30 +194,15 @@ const Artists = () => {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="logo-container">
-          <img src={logo} alt="Logo PressPilot" className="logo" />
-          <div className="app-name">PressPilot</div>
-        </div>
-        <div className="user-menu">
-          <div className="avatar">JP</div>
-        </div>
-      </header>
-
-      <div className="dashboard-body">
-        <Sidebar />
-
-        <main className="dashboard-main">
-          <div className="page-header">
-            <h1 className="dashboard-title">Artistes</h1>
-            <button
-              className="btn-primary"
-              onClick={() => setShowCreateForm(true)}
-            >
-              + Nouvel artiste
-            </button>
-          </div>
+    <Layout title="Artistes" subtitle="Gestion de vos artistes et leurs projets">
+      <div className="page-header">
+        <button
+          className="btn-primary"
+          onClick={() => setShowCreateForm(true)}
+        >
+          + Nouvel artiste
+        </button>
+      </div>
 
           {showCreateForm && (
             <section className="dashboard-section">
@@ -589,9 +573,7 @@ const Artists = () => {
               ))}
             </div>
           </section>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

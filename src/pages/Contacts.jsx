@@ -135,15 +135,9 @@ const Contacts = () => {
 
   if (loading) {
     return (
-      <div className="dashboard">
-        <Sidebar />
-        <main className="main-content">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">CONTACTS</h1>
-            <div className="loading-spinner"></div>
-          </div>
-        </main>
-      </div>
+      <Layout title="CONTACTS" subtitle="Chargement des contacts...">
+        <div className="loading-spinner"></div>
+      </Layout>
     );
   }
 

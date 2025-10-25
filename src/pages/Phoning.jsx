@@ -1,60 +1,153 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Clock, Users, TrendingUp } from 'lucide-react';
+import { Phone, Clock, Users, TrendingUp, ArrowRight, Calendar, Target } from 'lucide-react';
 import Layout from '../components/Layout';
 import '../styles/Dashboard.css';
-import PhoneSystem from '../components/phone/PhoneSystem';
-import CallHistory from '../components/phone/CallHistory';
-import callsApi from '../services/callsApi';
+import ArtistSelectionPage from '../components/phoning/ArtistSelectionPage';
+import ProjectSelectionPage from '../components/phoning/ProjectSelectionPage';
+import SessionCreationPage from '../components/phoning/SessionCreationPage';
+import SessionManagementPage from '../components/phoning/SessionManagementPage';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Phoning = () => {
-  const [selectedContact, setSelectedContact] = useState(null);
-  const [recentCalls, setRecentCalls] = useState([]);
+  // Workflow state management
+  const [currentStep, setCurrentStep] = useState('dashboard'); // dashboard, artist-selection, project-selection, session-creation, session-management
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [currentSession, setCurrentSession] = useState(null);
+
+  // Dashboard data
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [recentSessions, setRecentSessions] = useState([]);
   const [callStats, setCallStats] = useState({
+    totalSessions: 0,
+    activeSessions: 0,
     totalCalls: 0,
     answeredCalls: 0,
     totalDuration: 0,
-    todayCalls: 0
+    avgSuccessRate: 0
   });
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
-    loadData();
+    loadDashboardData();
   }, []);
 
-  const loadData = async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
 
-      // Charger les appels récents
-      const callsResponse = await callsApi.getRecentCalls(20);
-      setRecentCalls(callsResponse.data || []);
+      const token = localStorage.getItem('authToken');
+
+      // Charger les sessions actives
+      const sessionsResponse = await fetch('/api/call-sessions?status=active&limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (sessionsResponse.ok) {
+        const sessionsData = await sessionsResponse.json();
+        setActiveSessions(sessionsData.sessions || []);
+      }
+
+      // Charger les sessions récentes
+      const recentResponse = await fetch('/api/call-sessions?limit=5', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        setRecentSessions(recentData.sessions || []);
+      }
 
       // Charger les statistiques
-      const statsResponse = await callsApi.getCallStats();
-      setCallStats(statsResponse.data || callStats);
+      const statsResponse = await fetch('/api/call-sessions/stats/overview', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      // Les contacts seront chargés depuis l'API des contacts
-      setContacts([]);
+      if (statsResponse.ok) {
+        const stats = await statsResponse.json();
+        setCallStats(stats);
+      }
 
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      console.error('Erreur lors du chargement des données:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCallEnd = async (callData) => {
-    // Recharger les données après un appel
-    await loadData();
+  // Workflow navigation functions
+  const startNewSession = () => {
+    setCurrentStep('artist-selection');
+    setSelectedArtist(null);
+    setSelectedProject(null);
+    setCurrentSession(null);
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.phone.includes(searchTerm)
-  );
+  const handleArtistSelected = (artist) => {
+    setSelectedArtist(artist);
+    setCurrentStep('project-selection');
+  };
+
+  const handleProjectSelected = (project) => {
+    setSelectedProject(project);
+    setCurrentStep('session-creation');
+  };
+
+  const handleSessionCreated = async (sessionData) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/call-sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(sessionData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la création de la session');
+      }
+
+      const newSession = await response.json();
+      setCurrentSession(newSession);
+      setCurrentStep('session-management');
+
+      // Recharger les données du dashboard
+      loadDashboardData();
+    } catch (error) {
+      console.error('Erreur lors de la création de la session:', error);
+      throw error;
+    }
+  };
+
+  const handleSessionUpdate = (updatedSession) => {
+    setCurrentSession(updatedSession);
+    loadDashboardData(); // Recharger les données du dashboard
+  };
+
+  const openExistingSession = (session) => {
+    setCurrentSession(session);
+    setSelectedArtist({ name: session.artistName });
+    setSelectedProject({ name: session.projectName, _id: session.projectId });
+    setCurrentStep('session-management');
+  };
+
+  const backToDashboard = () => {
+    setCurrentStep('dashboard');
+    setSelectedArtist(null);
+    setSelectedProject(null);
+    setCurrentSession(null);
+  };
 
   const formatDuration = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -62,34 +155,100 @@ const Phoning = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const formatCallTime = (date) => {
-    return new Intl.RelativeTimeFormat('fr', { numeric: 'auto' }).format(
-      Math.round((date - new Date()) / (1000 * 60 * 60 * 24)),
-      'day'
-    );
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
+  // Render different workflow steps
+  if (currentStep === 'artist-selection') {
+    return (
+      <Layout title="PHONING" subtitle="Workflow d'appels par projet">
+        <ArtistSelectionPage
+          onSelectArtist={handleArtistSelected}
+          onBack={backToDashboard}
+        />
+      </Layout>
+    );
+  }
+
+  if (currentStep === 'project-selection') {
+    return (
+      <Layout title="PHONING" subtitle="Workflow d'appels par projet">
+        <ProjectSelectionPage
+          artist={selectedArtist}
+          onSelectProject={handleProjectSelected}
+          onBack={() => setCurrentStep('artist-selection')}
+        />
+      </Layout>
+    );
+  }
+
+  if (currentStep === 'session-creation') {
+    return (
+      <Layout title="PHONING" subtitle="Workflow d'appels par projet">
+        <SessionCreationPage
+          artist={selectedArtist}
+          project={selectedProject}
+          onCreateSession={handleSessionCreated}
+          onBack={() => setCurrentStep('project-selection')}
+        />
+      </Layout>
+    );
+  }
+
+  if (currentStep === 'session-management') {
+    return (
+      <Layout title="PHONING" subtitle="Workflow d'appels par projet">
+        <SessionManagementPage
+          session={currentSession}
+          onBack={backToDashboard}
+          onSessionUpdate={handleSessionUpdate}
+        />
+      </Layout>
+    );
+  }
+
+  // Default dashboard view
   if (loading) {
     return (
-      <Layout title="PHONING">
-        <div className="loading-spinner"></div>
+      <Layout title="PHONING" subtitle="Centre d'appels par projet">
+        <LoadingSpinner />
       </Layout>
     );
   }
 
   return (
-    <Layout title="PHONING" subtitle="Centre d'appels et gestion des contacts">
-      <div className="phoning-status online">
-        <span className="status-indicator"></span>
-        En ligne
-      </div>
+    <Layout title="PHONING" subtitle="Centre d'appels par projet">
+      <div className="phoning-dashboard">
+        <div className="dashboard-header">
+          <div className="header-content">
+            <h2>Tableau de bord des appels</h2>
+            <p>Gérez vos sessions d'appels par artiste et projet</p>
+          </div>
+          <button className="btn-primary" onClick={startNewSession}>
+            + Nouvelle session d'appels
+          </button>
+        </div>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques globales */}
         <div className="metrics-grid">
           <div className="metric-card">
             <div className="metric-header">
+              <Target className="metric-icon" />
+              <span className="metric-label">Sessions totales</span>
+            </div>
+            <div className="metric-value">{callStats.totalSessions}</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-header">
               <Phone className="metric-icon" />
-              <span className="metric-label">Appels totaux</span>
+              <span className="metric-label">Appels passés</span>
             </div>
             <div className="metric-value">{callStats.totalCalls}</div>
           </div>
@@ -113,135 +272,176 @@ const Phoning = () => {
           <div className="metric-card">
             <div className="metric-header">
               <Users className="metric-icon" />
-              <span className="metric-label">Aujourd'hui</span>
+              <span className="metric-label">Sessions actives</span>
             </div>
-            <div className="metric-value">{callStats.todayCalls}</div>
+            <div className="metric-value">{callStats.activeSessions}</div>
+          </div>
+
+          <div className="metric-card">
+            <div className="metric-header">
+              <TrendingUp className="metric-icon" />
+              <span className="metric-label">Taux de succès</span>
+            </div>
+            <div className="metric-value">{Math.round(callStats.avgSuccessRate * 100)}%</div>
           </div>
         </div>
 
-      <div className="phoning-content">
-        {/* Section contacts à appeler */}
-        <div className="phoning-contacts">
-          <div className="section-header">
-            <h2>Contacts a appeler</h2>
-            <div className="contacts-search">
-              <input
-                type="text"
-                placeholder="Rechercher un contact..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        <div className="dashboard-content">
+          {/* Sessions actives */}
+          <div className="dashboard-section">
+            <div className="section-header">
+              <h3>Sessions actives ({activeSessions.length})</h3>
+              {activeSessions.length > 0 && (
+                <button className="btn-secondary" onClick={() => window.location.href = '/analytics'}>
+                  Voir toutes les analyses
+                </button>
+              )}
             </div>
-          </div>
 
-          <div className="contacts-to-call">
-            {filteredContacts.map(contact => (
-              <div
-                key={contact.id}
-                className={`contact-call-card ${selectedContact?.id === contact.id ? 'selected' : ''}`}
-                onClick={() => setSelectedContact(contact)}
-              >
-                <div className="contact-info">
-                  <div className="contact-avatar">
-                    {contact.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className="contact-details">
-                    <h3>{contact.name}</h3>
-                    <p>{contact.position} - {contact.company}</p>
-                    <p className="contact-phone">{contact.phone}</p>
-                    {contact.lastCall && (
-                      <p className="contact-last-call">
-                        Dernier appel: {formatCallTime(contact.lastCall)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="contact-actions">
-                  <button
-                    className="btn-call"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedContact(contact);
-                    }}
-                  >
-                    📞
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Section système d'appel et historique */}
-        <div className="phoning-sidebar">
-          {selectedContact ? (
-            <div className="phoning-active">
-              <div className="selected-contact-header">
-                <h3>Contact sélectionné</h3>
-                <button
-                  className="close-btn"
-                  onClick={() => setSelectedContact(null)}
-                >
-                  ✕
+            {activeSessions.length === 0 ? (
+              <div className="empty-state">
+                <Phone size={48} className="empty-icon" />
+                <h4>Aucune session active</h4>
+                <p>Créez votre première session d'appels pour commencer</p>
+                <button className="btn-primary" onClick={startNewSession}>
+                  Créer une session
                 </button>
               </div>
+            ) : (
+              <div className="sessions-grid">
+                {activeSessions.map((session) => (
+                  <div key={session._id} className="session-card">
+                    <div className="session-header">
+                      <div className="session-info">
+                        <h4>{session.sessionName}</h4>
+                        <p>{session.artistName} • {session.projectName}</p>
+                      </div>
+                      <span className="session-status active">En cours</span>
+                    </div>
 
-              <div className="selected-contact-info">
-                <div className="contact-avatar large">
-                  {selectedContact.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <h4>{selectedContact.name}</h4>
-                <p>{selectedContact.position}</p>
-                <p>{selectedContact.company}</p>
-                <p className="phone-number">{selectedContact.phone}</p>
+                    <div className="session-progress">
+                      <div className="progress-stats">
+                        <span>Progression: {session.completionRate || 0}%</span>
+                        <span>{session.stats?.totalCalls || 0} appels</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${session.completionRate || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="session-stats">
+                      <div className="stat">
+                        <span className="stat-value">{session.stats?.answeredCalls || 0}</span>
+                        <span className="stat-label">Réponses</span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-value">{session.remainingContacts || 0}</span>
+                        <span className="stat-label">Restants</span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-value">{session.successRate || 0}%</span>
+                        <span className="stat-label">Succès</span>
+                      </div>
+                    </div>
+
+                    <div className="session-actions">
+                      <button
+                        className="btn-primary"
+                        onClick={() => openExistingSession(session)}
+                      >
+                        <ArrowRight size={16} />
+                        Continuer la session
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sessions récentes */}
+          {recentSessions.length > 0 && (
+            <div className="dashboard-section">
+              <div className="section-header">
+                <h3>Sessions récentes</h3>
               </div>
 
-              <PhoneSystem
-                contact={selectedContact}
-                onCallEnd={handleCallEnd}
-              />
+              <div className="recent-sessions-list">
+                {recentSessions.map((session) => (
+                  <div key={session._id} className="recent-session-item">
+                    <div className="session-info">
+                      <h4>{session.sessionName}</h4>
+                      <p>{session.artistName} • {session.projectName}</p>
+                      <span className="session-date">{formatDate(session.createdAt)}</span>
+                    </div>
 
-              <div className="contact-call-history">
-                <h4>Historique des appels</h4>
-                <CallHistory
-                  contactId={selectedContact.id}
-                  onCallAgain={() => {}}
-                />
+                    <div className="session-quick-stats">
+                      <span>{session.stats?.totalCalls || 0} appels</span>
+                      <span>{session.stats?.answeredCalls || 0} réponses</span>
+                      <span className={`session-status ${session.status}`}>
+                        {session.status === 'completed' ? 'Terminée' :
+                         session.status === 'active' ? 'Active' :
+                         session.status === 'paused' ? 'Pause' : session.status}
+                      </span>
+                    </div>
+
+                    <div className="session-actions">
+                      {session.status === 'active' && (
+                        <button
+                          className="btn-secondary"
+                          onClick={() => openExistingSession(session)}
+                        >
+                          Reprendre
+                        </button>
+                      )}
+                      <button className="btn-tertiary">
+                        Voir détails
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ) : (
-            <div className="phoning-placeholder">
-              <div className="placeholder-icon">📞</div>
-              <h3>Sélectionnez un contact</h3>
-              <p>Choisissez un contact dans la liste pour commencer un appel</p>
             </div>
           )}
         </div>
-      </div>
 
-        {/* Historique récent en bas */}
-        <div className="phoning-recent-history">
-          <h2>Appels recents</h2>
-          <div className="recent-calls-list">
-            {recentCalls.slice(0, 5).map(call => (
-              <div key={call.id} className="recent-call-item">
-                <div className="call-status">
-                  {call.status === 'answered' ? '✅' :
-                   call.status === 'no-answer' ? '❌' :
-                   call.status === 'busy' ? '🔴' : '⏸️'}
-                </div>
-                <div className="call-details">
-                  <div className="call-contact">{call.contactName || call.phoneNumber}</div>
-                  <div className="call-time">{new Date(call.createdAt).toLocaleString('fr-FR')}</div>
-                </div>
-                <div className="call-duration">
-                  {call.duration ? formatDuration(call.duration) : '-'}
-                </div>
+        <div className="getting-started">
+          <h3>Comment ça marche ?</h3>
+          <div className="workflow-steps-guide">
+            <div className="step-guide">
+              <div className="step-number">1</div>
+              <div className="step-content">
+                <h4>Sélectionnez un artiste</h4>
+                <p>Choisissez l'artiste pour lequel vous voulez faire des appels</p>
               </div>
-            ))}
+            </div>
+            <div className="step-guide">
+              <div className="step-number">2</div>
+              <div className="step-content">
+                <h4>Choisissez le projet</h4>
+                <p>Sélectionnez le projet spécifique à promouvoir</p>
+              </div>
+            </div>
+            <div className="step-guide">
+              <div className="step-number">3</div>
+              <div className="step-content">
+                <h4>Créez la session</h4>
+                <p>Configurez vos objectifs et sélectionnez vos contacts</p>
+              </div>
+            </div>
+            <div className="step-guide">
+              <div className="step-number">4</div>
+              <div className="step-content">
+                <h4>Passez vos appels</h4>
+                <p>Appelez vos contacts et documentez chaque interaction</p>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
     </Layout>
   );
 };

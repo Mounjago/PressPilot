@@ -1,0 +1,61 @@
+/* Contact Tags Styles */
+
+.contact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.contact-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: var(--gray-light);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.contact-tag.clickable {
+  cursor: pointer;
+}
+
+.contact-tag.clickable:hover {
+  background: var(--primary-light);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.contact-tag-more {
+  background: var(--primary-light);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .contact-tag {
+    background: var(--gray-dark);
+    color: var(--text-light);
+    border-color: var(--gray-medium);
+  }
+
+  .contact-tag.clickable:hover {
+    background: var(--primary-dark);
+    color: var(--primary-light);
+  }
+
+  .contact-tag-more {
+    background: var(--primary-dark);
+    color: var(--primary-light);
+  }
+}

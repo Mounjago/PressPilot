@@ -5,7 +5,7 @@
 
 const Mailgun = require('mailgun.js');
 const FormData = require('form-data');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 const Campaign = require('../models/Campaign');
 const EmailTracking = require('../models/EmailTracking');
 

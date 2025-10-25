@@ -1,0 +1,140 @@
+/* Contact Empty State Styles */
+
+.contact-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 300px;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--gray-medium);
+  margin-bottom: 16px;
+}
+
+.empty-state-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 400px;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.empty-state-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.empty-state-btn.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.empty-state-btn.primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.empty-state-btn.secondary {
+  background: var(--gray-light);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.empty-state-btn.secondary:hover {
+  background: var(--gray-medium);
+  border-color: var(--gray-medium);
+}
+
+.empty-state-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Responsive design */
+@media (min-width: 640px) {
+  .empty-state-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-empty-state {
+    padding: 32px 16px;
+    min-height: 250px;
+  }
+
+  .empty-state-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .empty-state-title {
+    font-size: 18px;
+  }
+
+  .empty-state-description {
+    font-size: 13px;
+  }
+
+  .empty-state-btn {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .empty-state-icon {
+    color: var(--gray-light);
+  }
+
+  .empty-state-title {
+    color: var(--text-light);
+  }
+
+  .empty-state-description {
+    color: var(--text-light-secondary);
+  }
+
+  .empty-state-btn.secondary {
+    background: var(--gray-dark);
+    color: var(--text-light);
+    border-color: var(--gray-medium);
+  }
+
+  .empty-state-btn.secondary:hover {
+    background: var(--gray-medium);
+  }
+}

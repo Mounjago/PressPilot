@@ -1,0 +1,96 @@
+/* Contact Avatar Styles */
+
+.contact-avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.contact-avatar-container.clickable {
+  cursor: pointer;
+}
+
+.contact-avatar-container.clickable:hover .contact-avatar {
+  transform: scale(1.05);
+}
+
+.contact-avatar {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  border: 2px solid var(--gray-light);
+  background: var(--primary-color);
+}
+
+/* Size variants */
+.contact-avatar-container.small .contact-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.contact-avatar-container.medium .contact-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.contact-avatar-container.large .contact-avatar {
+  width: 64px;
+  height: 64px;
+}
+
+.contact-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.contact-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+}
+
+.contact-avatar-container.small .contact-avatar-placeholder {
+  font-size: 12px;
+}
+
+.contact-avatar-container.medium .contact-avatar-placeholder {
+  font-size: 16px;
+}
+
+.contact-avatar-container.large .contact-avatar-placeholder {
+  font-size: 20px;
+}
+
+.contact-call-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 2;
+}
+
+.contact-avatar-container.small .contact-call-indicator {
+  width: 8px;
+  height: 8px;
+  bottom: -1px;
+  right: -1px;
+  border-width: 1px;
+}
+
+.contact-avatar-container.large .contact-call-indicator {
+  width: 16px;
+  height: 16px;
+  bottom: -3px;
+  right: -3px;
+  border-width: 3px;
+}

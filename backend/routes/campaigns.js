@@ -13,6 +13,8 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const { uuidv4 } = require('../utils/uuid');
+
 /**
  * RATE LIMITING SPÉCIALISÉ
  */
@@ -192,7 +194,7 @@ router.post('/', auth, campaignValidators, async (req, res) => {
     } = req.body;
 
     // Générer un ID de tracking si activé
-    const trackingPixelId = trackingEnabled ? require('uuid').v4() : null;
+    const trackingPixelId = trackingEnabled ? uuidv4() : null;
 
     const campaign = new Campaign({
       name,

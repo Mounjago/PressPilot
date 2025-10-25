@@ -1,0 +1,237 @@
+/* Contact Details Sidebar Styles */
+
+.contact-details-sidebar {
+  width: 400px;
+  height: 100%;
+  background: white;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.contact-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--gray-light);
+}
+
+.contact-details-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contact-details-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.contact-details-close:hover {
+  background: var(--gray-medium);
+  color: var(--text-primary);
+}
+
+.contact-details-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Content */
+.contact-details-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.contact-details-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contact-details-section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Phone and History sections */
+.contact-phone-section,
+.contact-history-section {
+  /* These sections inherit styles from their child components */
+}
+
+/* Contact Information Grid */
+.contact-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-item label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-item span {
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Notes */
+.contact-notes p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+/* Tags */
+.contact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.contact-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: var(--primary-light);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .contact-details-sidebar {
+    width: 350px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .contact-details-sidebar {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@media (max-width: 768px) {
+  .contact-details-header,
+  .contact-details-section {
+    padding: 16px 20px;
+  }
+
+  .contact-details-header h3 {
+    font-size: 16px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .info-item {
+    gap: 2px;
+  }
+
+  .info-item label {
+    font-size: 11px;
+  }
+
+  .info-item span {
+    font-size: 13px;
+  }
+
+  .contact-notes p {
+    font-size: 13px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .contact-details-sidebar {
+    background: var(--gray-dark);
+    border-color: var(--gray-medium);
+  }
+
+  .contact-details-header {
+    background: var(--gray-medium);
+    border-color: var(--gray-light);
+  }
+
+  .contact-details-header h3 {
+    color: var(--text-light);
+  }
+
+  .contact-details-close {
+    color: var(--text-light-secondary);
+  }
+
+  .contact-details-close:hover {
+    background: var(--gray-light);
+    color: var(--text-light);
+  }
+
+  .contact-details-section {
+    border-color: var(--gray-medium);
+  }
+
+  .section-title {
+    color: var(--text-light);
+  }
+
+  .info-item label {
+    color: var(--text-light-secondary);
+  }
+
+  .info-item span {
+    color: var(--text-light);
+  }
+
+  .contact-notes p {
+    color: var(--text-light);
+  }
+
+  .contact-tag {
+    background: var(--primary-dark);
+    color: var(--primary-light);
+    border-color: var(--primary-light);
+  }
+}

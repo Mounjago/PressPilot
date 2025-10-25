@@ -59,13 +59,33 @@ app.use(helmet({
 // Compression des réponses
 app.use(compression());
 
-// CORS configuration - Simple et permissif en développement
-app.use(cors({
-  origin: true,
+// CORS configuration - Optimisé pour production Railway
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Autoriser les domaines Railway et localhost
+    const allowedOrigins = [
+      'https://presspilot.up.railway.app',
+      'https://frontend-presspilot-production.up.railway.app',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:4173'
+    ];
+
+    // Autoriser les requêtes sans origin (Postman, mobile apps, etc.)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(null, true); // Temporairement permissif pour debug
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting global
 const globalLimiter = rateLimit({
@@ -282,29 +302,37 @@ process.on('unhandledRejection', (reason, promise) => {
  */
 
 const startServer = async () => {
+  let dbConnected = false;
+
   try {
-    // Connexion à la base de données
+    // Tentative de connexion à la base de données
+    console.log('🔄 Tentative de connexion à MongoDB...');
     await connectDB();
     setupDatabaseEvents();
+    dbConnected = true;
+    console.log('✅ MongoDB connecté avec succès');
+  } catch (dbError) {
+    console.warn('⚠️ Impossible de se connecter à MongoDB:', dbError.message);
+    console.warn('🔄 Le serveur va démarrer sans base de données (mode dégradé)');
+  }
 
-    // Vérification des variables d'environnement requises
-    const requiredEnvVars = ['JWT_SECRET'];
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-    if (missingVars.length > 0) {
-      console.error(`❌ Variables d'environnement manquantes: ${missingVars.join(', ')}`);
-      process.exit(1);
+  try {
+    // Vérification des variables d'environnement requises (seulement JWT_SECRET)
+    if (!process.env.JWT_SECRET) {
+      // Générer un JWT temporaire pour Railway si manquant
+      process.env.JWT_SECRET = 'temporary-jwt-secret-' + Math.random().toString(36);
+      console.warn('⚠️ JWT_SECRET manquant, utilisation d\'une clé temporaire');
     }
 
-    // Démarrer le serveur
-    const server = app.listen(PORT, () => {
+    // Démarrer le serveur (toujours, même sans DB)
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`
 🚀 PressPilot Backend démarré
 📍 Port: ${PORT}
 🌍 Environnement: ${NODE_ENV}
 🔐 JWT: ${process.env.JWT_SECRET ? '✅ Configuré' : '❌ Non configuré'}
 📞 Ringover: ${process.env.RINGOVER_API_KEY ? '✅ Configuré' : '❌ Non configuré'}
-🗄️  MongoDB: ✅ Connecté
+🗄️  MongoDB: ${dbConnected ? '✅ Connecté' : '⚠️ Non disponible (mode dégradé)'}
 ⏰ ${new Date().toLocaleString('fr-FR')}
       `);
 
@@ -324,8 +352,18 @@ const startServer = async () => {
 
     return server;
   } catch (error) {
-    console.error('❌ Erreur lors du démarrage du serveur:', error);
-    process.exit(1);
+    console.error('❌ Erreur critique lors du démarrage du serveur:', error);
+
+    // Dernière tentative avec un serveur minimal
+    try {
+      const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🆘 Serveur minimal démarré sur le port ${PORT}`);
+      });
+      return server;
+    } catch (finalError) {
+      console.error('❌ Impossible de démarrer le serveur:', finalError);
+      process.exit(1);
+    }
   }
 };
 

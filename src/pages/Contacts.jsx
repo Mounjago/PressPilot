@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { Search, Phone, Filter, Grid, List, Plus, PhoneCall } from "lucide-react";
+import { Plus } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { contactsApi } from "../api";
 import "../styles/Dashboard.css";
 import "../styles/ContactsNew.css";
-import logo from "../assets/logo-bandstream.png";
+import "../components/contacts/ContactsLayout.css";
 
 // Composants
 import ContactsImporter from "../components/CSVImporter";
 import Layout from "../components/Layout";
-import ContactCard from "../components/phone/ContactCard";
-import PhoneSystem from "../components/phone/PhoneSystem";
-import CallHistory from "../components/phone/CallHistory";
 import CallModal from "../components/phone/CallModal";
 import ringoverService from "../services/ringoverService";
+
+// New modular contact components
+import {
+  ContactFilters,
+  ContactList,
+  ContactModal,
+  ContactDetails
+} from "../components/contacts";
 
 const Contacts = () => {
   const [contacts, setContacts] = useState([]);
@@ -29,6 +34,7 @@ const Contacts = () => {
   const [loading, setLoading] = useState(true);
   const [showCsvImporter, setShowCsvImporter] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [editingContact, setEditingContact] = useState(null);
 
 
   // Chargement des contacts
@@ -90,6 +96,8 @@ const Contacts = () => {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(contact =>
         contact.name?.toLowerCase().includes(term) ||
+        contact.firstName?.toLowerCase().includes(term) ||
+        contact.lastName?.toLowerCase().includes(term) ||
         contact.company?.toLowerCase().includes(term) ||
         contact.email?.toLowerCase().includes(term) ||
         contact.phone?.includes(term) ||
@@ -115,6 +123,48 @@ const Contacts = () => {
     }
 
     setFilteredContacts(filtered);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterStatus("all");
+  };
+
+  const handleContactSave = async (contactData) => {
+    try {
+      if (contactData.id) {
+        // Edit existing contact
+        await contactsApi.update(contactData.id, contactData);
+      } else {
+        // Create new contact
+        await contactsApi.create(contactData);
+      }
+      await loadContacts();
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du contact:', error);
+      throw error;
+    }
+  };
+
+  const handleContactDelete = async (contact) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${contact.firstName || contact.name} ${contact.lastName || ''}?`)) {
+      try {
+        await contactsApi.delete(contact.id);
+        await loadContacts();
+        if (selectedContact?.id === contact.id) {
+          setSelectedContact(null);
+          setShowPhoneSystem(false);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la suppression du contact:', error);
+        alert('Erreur lors de la suppression du contact.');
+      }
+    }
+  };
+
+  const handleContactEdit = (contact) => {
+    setEditingContact(contact);
+    setShowContactModal(true);
   };
 
   const handleContactSelect = (contact) => {
@@ -143,130 +193,73 @@ const Contacts = () => {
   return (
     <Layout title="CONTACTS" subtitle="Gestion de vos contacts presse et médias">
       <div className="contacts-actions">
-            <button
-              className="btn-secondary"
-              onClick={() => setShowCsvImporter(true)}
-              style={{ marginRight: '10px' }}
-            >
-              📁 Importer
-            </button>
-            <button
-              className="btn-primary"
-              onClick={() => setShowContactModal(true)}
-            >
-              <Plus />
-              Nouveau contact
-            </button>
-          </div>
+        <button
+          className="btn-secondary"
+          onClick={() => setShowCsvImporter(true)}
+          style={{ marginRight: '10px' }}
+        >
+          📁 Importer
+        </button>
+        <button
+          className="btn-primary"
+          onClick={() => setShowContactModal(true)}
+        >
+          <Plus />
+          Nouveau contact
+        </button>
+      </div>
 
-        {/* Barre de recherche et filtres */}
-        <section className="contacts-filters">
-          <div className="contacts-search">
-            <Search />
-            <input
-              type="text"
-              placeholder="Rechercher un contact..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+      {/* Filters */}
+      <ContactFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filterStatus={filterStatus}
+        onFilterChange={setFilterStatus}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        totalContacts={contacts.length}
+        filteredCount={filteredContacts.length}
+        onClearFilters={handleClearFilters}
+      />
 
-          <div className="contacts-filter-controls">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="contacts-filter-select"
-            >
-              <option value="all">Tous les contacts</option>
-              <option value="with-phone">Avec téléphone</option>
-              <option value="high-priority">Priorité élevée</option>
-              <option value="recent-calls">Appels récents</option>
-            </select>
-
-            <div className="contacts-view-toggle">
-              <button
-                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid />
-              </button>
-              <button
-                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-                onClick={() => setViewMode('list')}
-              >
-                <List />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Contenu principal */}
-        <div className="contacts-content">
-          {/* Liste des contacts */}
-          <div className={`contacts-list ${viewMode}`}>
-            {filteredContacts.length === 0 ? (
-              <div className="contacts-empty">
-                <Phone className="contacts-empty-icon" />
-                <h3>Aucun contact trouvé</h3>
-                <p>Aucun contact ne correspond à vos critères de recherche.</p>
-              </div>
-            ) : (
-              filteredContacts.map((contact) => (
-                <ContactCard
-                  key={contact.id}
-                  contact={contact}
-                  isSelected={selectedContact?.id === contact.id}
-                  onSelect={() => handleContactSelect(contact)}
-                  onCall={handleCallContact}
-                  showPhoneSystem={selectedContact?.id === contact.id && showPhoneSystem}
-                  showCallHistory={selectedContact?.id === contact.id && showPhoneSystem}
-                />
-              ))
-            )}
-          </div>
-
-          {/* Sidebar avec détails du contact sélectionné */}
-          {selectedContact && (
-            <div className="contacts-sidebar">
-              <div className="contacts-sidebar-header">
-                <h3>Détails du contact</h3>
-                <button
-                  className="contacts-sidebar-close"
-                  onClick={handleClosePhoneSystem}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="contacts-sidebar-content">
-                {showPhoneSystem && (
-                  <div className="contacts-phone-section">
-                    <PhoneSystem
-                      contact={selectedContact}
-                      onCallStart={(call) => {
-                        setCurrentCall(call);
-                        setShowCallModal(true);
-                      }}
-                      onCallEnd={() => {
-                        setCurrentCall(null);
-                        setShowCallModal(false);
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="contacts-history-section">
-                  <CallHistory
-                    contactId={selectedContact.id}
-                    onCallInitiated={() => {
-                      // Gestion si nécessaire
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+      {/* Main content */}
+      <div className="contacts-content">
+        {/* Contact list */}
+        <div className="contacts-list-container">
+          <ContactList
+            contacts={filteredContacts}
+            selectedContact={selectedContact}
+            onContactSelect={handleContactSelect}
+            onContactCall={handleCallContact}
+            onContactEdit={handleContactEdit}
+            onContactDelete={handleContactDelete}
+            viewMode={viewMode}
+            searchTerm={searchTerm}
+            filterStatus={filterStatus}
+            onCreateContact={() => setShowContactModal(true)}
+            onImportContacts={() => setShowCsvImporter(true)}
+            onClearFilters={handleClearFilters}
+            loading={loading}
+          />
         </div>
+
+        {/* Contact details sidebar */}
+        {selectedContact && (
+          <ContactDetails
+            contact={selectedContact}
+            onClose={handleClosePhoneSystem}
+            showPhoneSystem={showPhoneSystem}
+            onCallStart={(call) => {
+              setCurrentCall(call);
+              setShowCallModal(true);
+            }}
+            onCallEnd={() => {
+              setCurrentCall(null);
+              setShowCallModal(false);
+            }}
+          />
+        )}
+      </div>
 
         {/* Modal d'appel */}
         {showCallModal && currentCall && (
@@ -296,121 +289,17 @@ const Contacts = () => {
           )}
         </AnimatePresence>
 
-        {/* Modal de création de contact */}
-        <AnimatePresence>
-          {showContactModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="modal-overlay"
-              onClick={() => setShowContactModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                className="modal-content"
-                onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: '500px', width: '90%' }}
-              >
-                <div className="modal-header">
-                  <h2>Nouveau contact</h2>
-                  <button
-                    className="modal-close"
-                    onClick={() => setShowContactModal(false)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="modal-body">
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.target);
-
-                      // Séparer le nom complet en prénom et nom
-                      const fullName = formData.get('name').trim();
-                      const nameParts = fullName.split(' ');
-                      const firstName = nameParts[0] || '';
-                      const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
-
-                      const contactData = {
-                        firstName: firstName,
-                        lastName: lastName,
-                        email: formData.get('email'),
-                        phone: formData.get('phone'),
-                        jobTitle: formData.get('jobTitle'),
-                        media: {
-                          name: formData.get('company'),
-                          type: formData.get('mediaType') || 'web'
-                        },
-                        notes: formData.get('notes')
-                      };
-
-                      try {
-                        await contactsApi.create(contactData);
-                        await loadContacts();
-                        setShowContactModal(false);
-                        e.target.reset();
-                      } catch (error) {
-                        console.error('Erreur création contact:', error);
-                        alert('Erreur lors de la création du contact. Vérifiez que tous les champs requis sont remplis.');
-                      }
-                    }}
-                  >
-                    <div className="form-group">
-                      <label>Nom complet *</label>
-                      <input type="text" name="name" placeholder="Prénom Nom" required />
-                    </div>
-                    <div className="form-group">
-                      <label>Email *</label>
-                      <input type="email" name="email" placeholder="email@exemple.com" required />
-                    </div>
-                    <div className="form-group">
-                      <label>Téléphone</label>
-                      <input type="tel" name="phone" placeholder="+33 6 12 34 56 78" />
-                    </div>
-                    <div className="form-group">
-                      <label>Média / Entreprise</label>
-                      <input type="text" name="company" placeholder="Le Monde, Radio France..." />
-                    </div>
-                    <div className="form-group">
-                      <label>Type de média</label>
-                      <select name="mediaType">
-                        <option value="web">Web</option>
-                        <option value="journal">Journal</option>
-                        <option value="magazine">Magazine</option>
-                        <option value="radio">Radio</option>
-                        <option value="tv">TV</option>
-                        <option value="blog">Blog</option>
-                        <option value="podcast">Podcast</option>
-                        <option value="influencer">Influenceur</option>
-                        <option value="autre">Autre</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Fonction</label>
-                      <input type="text" name="jobTitle" placeholder="Journaliste, Rédacteur en chef..." />
-                    </div>
-                    <div className="form-group">
-                      <label>Notes</label>
-                      <textarea name="notes" rows="3" placeholder="Informations complémentaires..."></textarea>
-                    </div>
-                    <div className="modal-actions">
-                      <button type="button" className="btn-secondary" onClick={() => setShowContactModal(false)}>
-                        Annuler
-                      </button>
-                      <button type="submit" className="btn-primary">
-                        Créer le contact
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Contact Modal */}
+      <ContactModal
+        isOpen={showContactModal}
+        contact={editingContact}
+        onClose={() => {
+          setShowContactModal(false);
+          setEditingContact(null);
+        }}
+        onSave={handleContactSave}
+        loading={loading}
+      />
     </Layout>
   );
 };

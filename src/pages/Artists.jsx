@@ -193,6 +193,375 @@ const Artists = () => {
     navigate(`/artists/${artistId}/projects`);
   };
 
+  const handleGenerateReport = async (artist) => {
+    try {
+      // In a real implementation, you'd fetch projects for this artist from the API
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement des projets');
+      }
+
+      const allProjects = await response.json();
+      const artistProjects = allProjects.filter(project => project.artist === artist.name);
+
+      if (artistProjects.length === 0) {
+        alert(`Aucun projet trouvé pour ${artist.name}`);
+        return;
+      }
+
+      // Show project selection modal
+      showProjectSelectionModal(artist, artistProjects);
+
+    } catch (error) {
+      console.error('Erreur lors de la génération du rapport:', error);
+      alert('Erreur lors de la génération du rapport');
+    }
+  };
+
+  const showProjectSelectionModal = (artist, projects) => {
+    const modalContent = `
+      <div class="modal-overlay" id="projectModal">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Sélectionner un projet pour le rapport</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-content">
+            <p>Artiste: <strong>${artist.name}</strong></p>
+            <p>Sélectionnez le projet pour lequel vous souhaitez générer un rapport détaillé:</p>
+            <div class="project-selection-list">
+              ${projects.map(project => `
+                <div class="project-option" onclick="generateProjectReport('${project._id}', '${project.name}', '${artist.name}')">
+                  <h4>${project.name}</h4>
+                  <p>${project.type} • ${project.genre}</p>
+                  <p>Sortie: ${new Date(project.releaseDate).toLocaleDateString('fr-FR')}</p>
+                  <span class="project-status ${project.status}">${project.status}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to DOM
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalContent;
+    document.body.appendChild(modalDiv);
+
+    // Add global functions for modal interaction
+    window.closeModal = () => {
+      document.getElementById('projectModal').remove();
+    };
+
+    window.generateProjectReport = async (projectId, projectName, artistName) => {
+      try {
+        document.getElementById('projectModal').remove();
+
+        // Show loading
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = `
+          <div class="modal-overlay">
+            <div class="modal-container">
+              <div class="modal-content text-center">
+                <div class="loading-spinner"></div>
+                <p>Génération du rapport en cours...</p>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(loadingDiv);
+
+        // Generate report
+        const token = localStorage.getItem('authToken');
+        const reportResponse = await fetch(`/api/project-reports/quick-generate/${projectId}?reportType=full`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!reportResponse.ok) {
+          throw new Error('Erreur lors de la génération du rapport');
+        }
+
+        const reportData = await reportResponse.json();
+        loadingDiv.remove();
+
+        // Show report
+        showReportModal(reportData.report, projectName, artistName);
+
+      } catch (error) {
+        console.error('Erreur rapport:', error);
+        loadingDiv.remove();
+        alert('Erreur lors de la génération du rapport');
+      }
+    };
+  };
+
+  const showReportModal = (report, projectName, artistName) => {
+    const formatDate = (dateString) => {
+      return dateString ? new Date(dateString).toLocaleDateString('fr-FR') : 'Non définie';
+    };
+
+    const formatDuration = (seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    const modalContent = `
+      <div class="modal-overlay" id="reportModal">
+        <div class="modal-container large">
+          <div class="modal-header">
+            <h3>Rapport - ${projectName} (${artistName})</h3>
+            <button class="modal-close" onclick="closeReportModal()">×</button>
+          </div>
+          <div class="modal-content">
+            <div class="report-content">
+              <!-- Project Info -->
+              <section class="report-section">
+                <h4>Informations du projet</h4>
+                <div class="project-info-grid">
+                  <div class="info-item">
+                    <label>Nom:</label>
+                    <span>${report.session.project.name}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>Artiste:</label>
+                    <span>${report.session.project.artist}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>Type:</label>
+                    <span>${report.session.project.type}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>Genre:</label>
+                    <span>${report.session.project.genre}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>Label:</label>
+                    <span>${report.session.project.label}</span>
+                  </div>
+                  <div class="info-item">
+                    <label>Date de sortie:</label>
+                    <span>${formatDate(report.session.project.releaseDate)}</span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Email Statistics -->
+              <section class="report-section">
+                <h4>📧 Statistiques Emails</h4>
+                <div class="stats-grid">
+                  <div class="stat-item">
+                    <label>Campagnes:</label>
+                    <span>${report.emailStats.totalCampaigns}</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Emails envoyés:</label>
+                    <span>${report.emailStats.totalEmailsSent}</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Taux d'ouverture:</label>
+                    <span>${report.emailStats.openRate}%</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Taux de réponse:</label>
+                    <span>${report.emailStats.replyRate}%</span>
+                  </div>
+                </div>
+
+                ${report.emailStats.campaigns.length > 0 ? `
+                  <div class="campaigns-list">
+                    <h5>Détail des campagnes:</h5>
+                    ${report.emailStats.campaigns.map(campaign => `
+                      <div class="campaign-item">
+                        <h6>${campaign.name}</h6>
+                        <p><strong>Sujet:</strong> ${campaign.subject}</p>
+                        <p><strong>Envoyé le:</strong> ${formatDate(campaign.sentAt)}</p>
+                        <div class="campaign-stats">
+                          <span>${campaign.emailsSent} envois</span>
+                          <span>${campaign.emailsOpened} ouvertures</span>
+                          <span>${campaign.emailsReplied} réponses</span>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : '<p>Aucune campagne email</p>'}
+              </section>
+
+              <!-- Call Statistics -->
+              <section class="report-section">
+                <h4>📞 Statistiques Appels</h4>
+                <div class="stats-grid">
+                  <div class="stat-item">
+                    <label>Sessions:</label>
+                    <span>${report.callStats.totalSessions}</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Appels passés:</label>
+                    <span>${report.callStats.totalCalls}</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Taux de réponse:</label>
+                    <span>${report.callStats.successRate}%</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Durée totale:</label>
+                    <span>${formatDuration(report.callStats.totalDuration)}</span>
+                  </div>
+                </div>
+
+                ${report.callStats.callLogs.length > 0 ? `
+                  <div class="calls-list">
+                    <h5>Détail des appels:</h5>
+                    ${report.callStats.callLogs.map(call => `
+                      <div class="call-item">
+                        <div class="call-header">
+                          <h6>${call.contactName}</h6>
+                          <span class="call-status ${call.status}">${call.status}</span>
+                        </div>
+                        <p><strong>Média:</strong> ${call.mediaName}</p>
+                        <p><strong>Date:</strong> ${formatDate(call.date)}</p>
+                        <p><strong>Durée:</strong> ${formatDuration(call.duration)}</p>
+                        <p><strong>Résultat:</strong> ${call.outcome || 'Non défini'}</p>
+                        <div class="call-comments">
+                          <strong>Commentaires:</strong>
+                          <p>${call.comments}</p>
+                        </div>
+                        ${call.journalistFeedback && Object.keys(call.journalistFeedback).some(key => call.journalistFeedback[key]) ? `
+                          <div class="journalist-feedback">
+                            <strong>Feedback journaliste:</strong>
+                            ${call.journalistFeedback.mediaInterest ? `<p>Intérêt: ${call.journalistFeedback.mediaInterest}</p>` : ''}
+                            ${call.journalistFeedback.preferredFormat ? `<p>Format: ${call.journalistFeedback.preferredFormat}</p>` : ''}
+                            ${call.journalistFeedback.deadline ? `<p>Deadline: ${formatDate(call.journalistFeedback.deadline)}</p>` : ''}
+                            ${call.journalistFeedback.additionalRequests ? `<p>Demandes: ${call.journalistFeedback.additionalRequests}</p>` : ''}
+                          </div>
+                        ` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : '<p>Aucun appel</p>'}
+              </section>
+
+              <!-- Media Contacted -->
+              <section class="report-section">
+                <h4>📺 Médias Contactés</h4>
+                <div class="stats-grid">
+                  <div class="stat-item">
+                    <label>Total contactés:</label>
+                    <span>${report.contactStats.totalContacted}</span>
+                  </div>
+                  <div class="stat-item">
+                    <label>Médias uniques:</label>
+                    <span>${report.contactStats.uniqueMedias}</span>
+                  </div>
+                </div>
+
+                ${report.mediaContacted.length > 0 ? `
+                  <div class="media-list">
+                    <h5>Liste des médias:</h5>
+                    <ul>
+                      ${report.mediaContacted.map(media => `<li>${media}</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : '<p>Aucun média contacté</p>'}
+              </section>
+
+              <!-- Interested Medias -->
+              ${report.interestedMedias.length > 0 ? `
+                <section class="report-section">
+                  <h4>⭐ Médias Intéressés</h4>
+                  <div class="interested-media-list">
+                    ${report.interestedMedias.map(media => `
+                      <div class="interested-media-item">
+                        <h6>${media.name}</h6>
+                        <p><strong>Contact:</strong> ${media.contactName}</p>
+                        <p><strong>Niveau d'intérêt:</strong> ${media.interestLevel}</p>
+                        <p><strong>Format préféré:</strong> ${media.preferredFormat}</p>
+                        ${media.deadline ? `<p><strong>Deadline:</strong> ${formatDate(media.deadline)}</p>` : ''}
+                        ${media.notes ? `<p><strong>Notes:</strong> ${media.notes}</p>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </section>
+              ` : ''}
+
+              <!-- Outcomes Summary -->
+              <section class="report-section">
+                <h4>📊 Résumé des Résultats</h4>
+                <div class="outcomes-grid">
+                  <div class="outcome-item">
+                    <label>Interviews:</label>
+                    <span>${report.outcomes.interviews}</span>
+                  </div>
+                  <div class="outcome-item">
+                    <label>Reviews:</label>
+                    <span>${report.outcomes.reviews}</span>
+                  </div>
+                  <div class="outcome-item">
+                    <label>Features:</label>
+                    <span>${report.outcomes.features}</span>
+                  </div>
+                  <div class="outcome-item">
+                    <label>Rappels demandés:</label>
+                    <span>${report.outcomes.callbacksRequested}</span>
+                  </div>
+                  <div class="outcome-item">
+                    <label>Pas intéressés:</label>
+                    <span>${report.outcomes.notInterested}</span>
+                  </div>
+                  <div class="outcome-item">
+                    <label>Emails de suivi:</label>
+                    <span>${report.outcomes.followUpEmails}</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" onclick="downloadReport('${projectName}', '${artistName}')">
+              Télécharger PDF
+            </button>
+            <button class="btn-secondary" onclick="closeReportModal()">
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add modal to DOM
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalContent;
+    document.body.appendChild(modalDiv);
+
+    // Add global functions for modal interaction
+    window.closeReportModal = () => {
+      document.getElementById('reportModal').remove();
+    };
+
+    window.downloadReport = (projectName, artistName) => {
+      // Create and download JSON report
+      const dataStr = JSON.stringify(report, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rapport-${artistName.replace(/\s+/g, '-')}-${projectName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+  };
+
   return (
     <Layout title="Artistes" subtitle="Gestion de vos artistes et leurs projets">
       <div className="page-header">
@@ -565,7 +934,13 @@ const Artists = () => {
                     >
                       Voir les projets
                     </button>
-                    <button className="btn-secondary">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleGenerateReport(artist)}
+                    >
+                      Rapport
+                    </button>
+                    <button className="btn-tertiary">
                       Modifier
                     </button>
                   </div>

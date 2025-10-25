@@ -4,7 +4,7 @@
   "description": "Backend API pour PressPilot avec intégration Ringover",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node start.js",
     "dev": "nodemon server.js",
     "test": "jest",
     "lint": "eslint .",
@@ -44,7 +44,6 @@
     "pg": "^8.11.1",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.32.1",
-    "uuid": "^13.0.0",
     "winston": "^3.10.0"
   },
   "devDependencies": {

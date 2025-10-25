@@ -70,14 +70,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="dashboard">
-      <Sidebar />
-
-      <main className="main-content">
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">PARAMETRES</h1>
-          <p className="dashboard-subtitle">Gérez vos préférences et paramètres de compte</p>
-        </div>
+    <Layout title="PARAMETRES" subtitle="Gérez vos préférences et paramètres de compte">
 
         <div className="settings-container">
           {/* Navigation des onglets */}
@@ -322,8 +315,7 @@ const Settings = () => {
             )}
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

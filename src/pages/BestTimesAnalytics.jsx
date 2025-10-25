@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, TrendingUp, Phone, Mail, Target, Users, Menu, X } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+import { Clock, Calendar, TrendingUp, Phone, Mail, Target, Users } from 'lucide-react';
+import Layout from '../components/Layout';
 import { analyticsApi } from '../api';
 import '../styles/Dashboard.css';
 
 const BestTimesAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bestTimesData, setBestTimesData] = useState({
     hourly: [],
     daily: []
@@ -63,87 +62,50 @@ const BestTimesAnalytics = () => {
 
   if (loading) {
     return (
-      <div className="dashboard">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="main-content ml-0 md:ml-64 p-4 md:p-6">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">MEILLEURS MOMENTS</h1>
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
-              <span className="ml-3 text-gray-600">Chargement des données...</span>
-            </div>
-          </div>
-        </main>
-      </div>
+      <Layout title="MEILLEURS MOMENTS" subtitle="Identifiez les créneaux optimaux pour vos campagnes">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+          <span className="ml-3 text-gray-600">Chargement des données...</span>
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="dashboard">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="main-content ml-0 md:ml-64 p-4 md:p-6">
-          <div className="dashboard-header">
-            <h1 className="dashboard-title">MEILLEURS MOMENTS</h1>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
-              <div className="flex items-center">
-                <div className="text-red-600 mr-3">⚠️</div>
-                <div>
-                  <h3 className="text-red-800 font-medium">Erreur de chargement</h3>
-                  <p className="text-red-700 text-sm mt-1">{error}</p>
-                  <button
-                    onClick={fetchBestTimesData}
-                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              </div>
+      <Layout title="MEILLEURS MOMENTS" subtitle="Identifiez les créneaux optimaux pour vos campagnes">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+          <div className="flex items-center">
+            <div className="text-red-600 mr-3">⚠️</div>
+            <div>
+              <h3 className="text-red-800 font-medium">Erreur de chargement</h3>
+              <p className="text-red-700 text-sm mt-1">{error}</p>
+              <button
+                onClick={fetchBestTimesData}
+                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+              >
+                Réessayer
+              </button>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="dashboard min-h-screen bg-gray-50">
-      {/* Mobile header */}
-      <header className="dashboard-header md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Toggle menu"
-          >
-            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900 truncate">Meilleurs moments</h1>
-          <div className="w-10"></div> {/* Spacer for centering */}
-        </div>
-      </header>
-
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <main className="main-content ml-0 md:ml-64 pt-16 md:pt-0 p-4 md:p-6 min-h-screen">
-        <div className="dashboard-header mb-6">
-          <div className="hidden md:block">
-            <h1 className="dashboard-title text-2xl md:text-3xl font-bold text-gray-900 mb-2">MEILLEURS MOMENTS</h1>
-            <p className="dashboard-subtitle text-gray-600 mb-4">Identifiez les créneaux optimaux pour vos campagnes</p>
-          </div>
-
-          <div className="time-range-selector">
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="form-select w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="7d">7 derniers jours</option>
-              <option value="30d">30 derniers jours</option>
-              <option value="90d">3 derniers mois</option>
-            </select>
-          </div>
-        </div>
+    <Layout title="MEILLEURS MOMENTS" subtitle="Identifiez les créneaux optimaux pour vos campagnes">
+      <div className="time-range-selector mb-6">
+        <select
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+          className="form-select w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        >
+          <option value="7d">7 derniers jours</option>
+          <option value="30d">30 derniers jours</option>
+          <option value="90d">3 derniers mois</option>
+        </select>
+      </div>
 
         {/* Insights principaux */}
         {insights.length > 0 ? (
@@ -389,8 +351,7 @@ const BestTimesAnalytics = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </Layout>
   );
 };
 

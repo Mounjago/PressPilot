@@ -630,4 +630,92 @@ router.get('/service/status', auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/campaigns/:id/exchanges - Récupérer tous les échanges d'une campagne
+ */
+router.get('/:id/exchanges', auth, [
+  param('id').isMongoId().withMessage('ID campagne invalide')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const campaignId = req.params.id;
+
+    // Vérifier que la campagne existe et appartient à l'utilisateur
+    const campaign = await Campaign.findOne({
+      _id: campaignId,
+      userId: req.user.id
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campagne non trouvée'
+      });
+    }
+
+    // Récupérer tous les échanges de cette campagne
+    const exchanges = await EmailTracking.find({
+      campaignId: campaignId
+    })
+    .populate('contactId', 'name email media type location')
+    .sort({ sentAt: -1 })
+    .lean();
+
+    // Formater les données pour la modale
+    const formattedExchanges = exchanges.map(exchange => ({
+      _id: exchange._id,
+      type: exchange.type || 'sent',
+      status: exchange.status || 'sent',
+      subject: exchange.subject || campaign.subject,
+      to: exchange.to,
+      from: exchange.from,
+      sentAt: exchange.sentAt,
+      receivedAt: exchange.receivedAt,
+      contact: exchange.contactId ? {
+        name: exchange.contactId.name,
+        email: exchange.contactId.email,
+        media: exchange.contactId.media,
+        type: exchange.contactId.type,
+        location: exchange.contactId.location
+      } : null,
+      tracking: {
+        opened: exchange.opened || false,
+        openedAt: exchange.openedAt,
+        clicked: exchange.clicked || false,
+        clickedAt: exchange.clickedAt,
+        replied: exchange.replied || false,
+        repliedAt: exchange.repliedAt
+      },
+      htmlContent: exchange.htmlContent,
+      textContent: exchange.textContent,
+      body: exchange.body,
+      reply: exchange.reply ? {
+        content: exchange.reply.content,
+        receivedAt: exchange.reply.receivedAt
+      } : null
+    }));
+
+    res.json({
+      success: true,
+      data: formattedExchanges,
+      count: formattedExchanges.length
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération échanges campagne:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des échanges'
+    });
+  }
+});
+
 module.exports = router;

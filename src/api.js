@@ -238,6 +238,16 @@ export const campaignsApi = {
   getAnalytics: async (id) => {
     const response = await api.get(`/api/campaigns/${id}/analytics`);
     return response.data;
+  },
+  // Obtenir tous les échanges d'une campagne (emails envoyés et réponses)
+  getExchanges: async (id) => {
+    const response = await api.get(`/api/campaigns/${id}/exchanges`);
+    return response.data;
+  },
+  // Récupérer une campagne avec toutes ses informations
+  get: async (id) => {
+    const response = await api.get(`/api/campaigns/${id}`);
+    return response.data;
   }
 };
 
@@ -487,6 +497,234 @@ export const uploadsApi = {
   // Obtenir les statistiques des uploads
   getStats: async () => {
     const response = await api.get('/api/uploads/stats');
+    return response.data;
+  }
+};
+
+// ========== IMAP ==========
+export const imapApi = {
+  // Récupérer toutes les configurations IMAP
+  getAll: async () => {
+    const response = await api.get('/api/imap');
+    return response.data;
+  },
+
+  // Récupérer les presets pour les providers
+  getPresets: async () => {
+    const response = await api.get('/api/imap/presets');
+    return response.data;
+  },
+
+  // Récupérer une configuration par ID
+  getById: async (id) => {
+    const response = await api.get(`/api/imap/${id}`);
+    return response.data;
+  },
+
+  // Créer une nouvelle configuration IMAP
+  create: async (configData) => {
+    const response = await api.post('/api/imap', configData);
+    return response.data;
+  },
+
+  // Mettre à jour une configuration IMAP
+  update: async (id, configData) => {
+    const response = await api.put(`/api/imap/${id}`, configData);
+    return response.data;
+  },
+
+  // Supprimer une configuration IMAP
+  delete: async (id) => {
+    const response = await api.delete(`/api/imap/${id}`);
+    return response.data;
+  },
+
+  // Tester une connexion IMAP
+  testConnection: async (id) => {
+    const response = await api.post(`/api/imap/${id}/test`);
+    return response.data;
+  },
+
+  // Forcer un poll pour une configuration
+  forcePoll: async (id) => {
+    const response = await api.post(`/api/imap/${id}/poll`);
+    return response.data;
+  },
+
+  // Activer/Désactiver le polling
+  togglePolling: async (id) => {
+    const response = await api.post(`/api/imap/${id}/toggle`);
+    return response.data;
+  },
+
+  // Obtenir le statut du service IMAP
+  getServiceStatus: async () => {
+    const response = await api.get('/api/imap/service/status');
+    return response.data;
+  }
+};
+
+// ========== QUEUE ==========
+export const queueApi = {
+  // Obtenir le statut des queues
+  getStatus: async () => {
+    const response = await api.get('/api/queue/status');
+    return response.data;
+  },
+
+  // Obtenir les jobs de traitement d'email
+  getEmailJobs: async (status = 'waiting', limit = 20) => {
+    const response = await api.get('/api/queue/jobs/email', {
+      params: { status, limit }
+    });
+    return response.data;
+  },
+
+  // Obtenir les jobs de polling IMAP
+  getImapJobs: async (status = 'waiting', limit = 20) => {
+    const response = await api.get('/api/queue/jobs/imap', {
+      params: { status, limit }
+    });
+    return response.data;
+  },
+
+  // Obtenir les détails d'un job
+  getJobDetails: async (jobId) => {
+    const response = await api.get(`/api/queue/job/${jobId}`);
+    return response.data;
+  },
+
+  // Relancer un job échoué
+  retryJob: async (jobId) => {
+    const response = await api.post(`/api/queue/job/${jobId}/retry`);
+    return response.data;
+  },
+
+  // Supprimer un job
+  deleteJob: async (jobId) => {
+    const response = await api.delete(`/api/queue/job/${jobId}`);
+    return response.data;
+  },
+
+  // Nettoyer les queues
+  cleanQueues: async () => {
+    const response = await api.post('/api/queue/clean');
+    return response.data;
+  },
+
+  // Mettre en pause les queues
+  pauseQueues: async () => {
+    const response = await api.post('/api/queue/pause');
+    return response.data;
+  },
+
+  // Reprendre les queues
+  resumeQueues: async () => {
+    const response = await api.post('/api/queue/resume');
+    return response.data;
+  },
+
+  // Obtenir les jobs répétés
+  getRepeatedJobs: async () => {
+    const response = await api.get('/api/queue/repeated');
+    return response.data;
+  }
+};
+
+// ========== MESSAGES ==========
+export const messagesApi = {
+  // Récupérer tous les messages
+  getAll: async (params = {}) => {
+    const response = await api.get('/api/messages', { params });
+    return response.data;
+  },
+
+  // Récupérer un message par ID
+  getById: async (id) => {
+    const response = await api.get(`/api/messages/${id}`);
+    return response.data;
+  },
+
+  // Rechercher des messages
+  search: async (query, filters = {}) => {
+    const response = await api.get('/api/messages/search', {
+      params: { q: query, ...filters }
+    });
+    return response.data;
+  },
+
+  // Marquer un message comme lu
+  markAsRead: async (id) => {
+    const response = await api.patch(`/api/messages/${id}/read`);
+    return response.data;
+  },
+
+  // Marquer un message comme important
+  markAsFlagged: async (id) => {
+    const response = await api.patch(`/api/messages/${id}/flag`);
+    return response.data;
+  },
+
+  // Ajouter un tag à un message
+  addTag: async (id, tag) => {
+    const response = await api.post(`/api/messages/${id}/tags`, { tag });
+    return response.data;
+  },
+
+  // Supprimer un tag d'un message
+  removeTag: async (id, tag) => {
+    const response = await api.delete(`/api/messages/${id}/tags/${tag}`);
+    return response.data;
+  },
+
+  // Archiver un message
+  archive: async (id) => {
+    const response = await api.patch(`/api/messages/${id}/archive`);
+    return response.data;
+  },
+
+  // Obtenir les statistiques des messages
+  getStats: async (period = 30) => {
+    const response = await api.get('/api/messages/stats', { params: { period } });
+    return response.data;
+  },
+
+  // Obtenir les messages d'une configuration IMAP
+  getByConfig: async (configId, options = {}) => {
+    const response = await api.get(`/api/messages/config/${configId}`, { params: options });
+    return response.data;
+  },
+
+  // Obtenir les messages d'une campagne
+  getByCampaign: async (campaignId, options = {}) => {
+    const response = await api.get(`/api/messages/campaign/${campaignId}`, { params: options });
+    return response.data;
+  }
+};
+
+// ========== AUTH ==========
+export const authApi = {
+  // Récupérer les paramètres email
+  getEmailSettings: async () => {
+    const response = await api.get('/api/auth/email-settings');
+    return response.data;
+  },
+
+  // Mettre à jour les paramètres email
+  updateEmailSettings: async (emailSettings) => {
+    const response = await api.put('/api/auth/email-settings', emailSettings);
+    return response.data;
+  },
+
+  // Récupérer le profil utilisateur
+  getProfile: async () => {
+    const response = await api.get('/api/auth/me');
+    return response.data;
+  },
+
+  // Mettre à jour le profil utilisateur
+  updateProfile: async (profileData) => {
+    const response = await api.put('/api/auth/profile', profileData);
     return response.data;
   }
 };

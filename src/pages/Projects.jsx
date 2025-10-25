@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { BarChart } from "lucide-react";
 import "../styles/Dashboard.css";
 import Layout from "../components/Layout";
+import CampaignDetailsModal from "../components/CampaignDetailsModal";
 
 const Projects = () => {
   const { artistId } = useParams();
@@ -10,6 +11,8 @@ const Projects = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   // Récupérer les données réelles depuis localStorage
   const getArtist = () => {
@@ -198,7 +201,11 @@ const Projects = () => {
   };
 
   const handleViewCampaigns = (projectId) => {
-    navigate(`/artists/${artistId}/projects/${projectId}/campaigns`);
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setSelectedProject(project);
+      setShowCampaignModal(true);
+    }
   };
 
   const handleViewReport = (projectId) => {
@@ -717,6 +724,18 @@ const Projects = () => {
               ))}
             </div>
           </section>
+
+          {showCampaignModal && selectedProject && (
+            <CampaignDetailsModal
+              projectId={selectedProject.id}
+              projectName={selectedProject.name}
+              onClose={() => {
+                setShowCampaignModal(false);
+                setSelectedProject(null);
+              }}
+            />
+          )}
+
     </Layout>
   );
 };

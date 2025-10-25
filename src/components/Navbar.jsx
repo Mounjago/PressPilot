@@ -26,6 +26,11 @@ const Navbar = () => {
       current: location.pathname === '/contacts'
     },
     {
+      name: 'Queue',
+      href: '/queue',
+      current: location.pathname === '/queue'
+    },
+    {
       name: 'Phoning',
       href: '/phoning',
       current: location.pathname === '/phoning'

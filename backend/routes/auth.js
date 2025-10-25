@@ -450,4 +450,132 @@ router.post('/refresh-token', auth, async (req, res) => {
   }
 });
 
+/**
+ * ROUTE: GET /api/auth/email-settings
+ * Récupérer les paramètres email de l'utilisateur
+ */
+router.get('/email-settings', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    res.json({
+      success: true,
+      emailSettings: user.emailSettings || {
+        senderEmail: user.email,
+        senderName: user.name,
+        replyToEmail: '',
+        signature: '',
+        trackOpens: true,
+        trackClicks: true,
+        unsubscribeLink: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des paramètres email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+/**
+ * ROUTE: PUT /api/auth/email-settings
+ * Mettre à jour les paramètres email de l'utilisateur
+ */
+router.put('/email-settings', auth, [
+  body('senderEmail')
+    .optional()
+    .isEmail()
+    .withMessage('Email expéditeur invalide')
+    .normalizeEmail(),
+
+  body('senderName')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Le nom expéditeur doit contenir entre 1 et 100 caractères'),
+
+  body('replyToEmail')
+    .optional()
+    .isEmail()
+    .withMessage('Email de réponse invalide')
+    .normalizeEmail(),
+
+  body('signature')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('La signature ne peut pas dépasser 1000 caractères'),
+
+  body('trackOpens')
+    .optional()
+    .isBoolean()
+    .withMessage('Le suivi des ouvertures doit être un booléen'),
+
+  body('trackClicks')
+    .optional()
+    .isBoolean()
+    .withMessage('Le suivi des clics doit être un booléen'),
+
+  body('unsubscribeLink')
+    .optional()
+    .isBoolean()
+    .withMessage('Le lien de désabonnement doit être un booléen')
+], async (req, res) => {
+  try {
+    // Vérifier les erreurs de validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array().map(error => ({
+          field: error.path,
+          message: error.msg
+        }))
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Mettre à jour les paramètres email
+    const emailSettings = {
+      ...user.emailSettings,
+      ...req.body
+    };
+
+    user.emailSettings = emailSettings;
+    await user.save();
+
+    console.log(`📧 Paramètres email mis à jour pour: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Paramètres email mis à jour avec succès',
+      emailSettings: user.emailSettings
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des paramètres email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 module.exports = router;

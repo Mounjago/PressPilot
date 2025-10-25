@@ -85,6 +85,41 @@ const userSchema = new mongoose.Schema({
       default: 'Europe/Paris'
     }
   },
+  emailSettings: {
+    senderEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: function() { return this.email; }
+    },
+    senderName: {
+      type: String,
+      trim: true,
+      default: function() { return this.name; }
+    },
+    replyToEmail: {
+      type: String,
+      trim: true,
+      lowercase: true
+    },
+    signature: {
+      type: String,
+      trim: true,
+      maxLength: [1000, 'La signature ne peut pas dépasser 1000 caractères']
+    },
+    trackOpens: {
+      type: Boolean,
+      default: true
+    },
+    trackClicks: {
+      type: Boolean,
+      default: true
+    },
+    unsubscribeLink: {
+      type: Boolean,
+      default: true
+    }
+  },
   subscription: {
     plan: {
       type: String,

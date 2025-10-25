@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Save, User, Lock, Bell, Mail, Globe, Palette, Database } from 'lucide-react';
+import { Save, User, Lock, Bell, Mail, Globe, Palette, Database, Send } from 'lucide-react';
 import Layout from '../components/Layout';
+import IMAPSettings from '../components/IMAPSettings';
+import { authApi } from '../api';
 import '../styles/Dashboard.css';
 
 const Settings = () => {
@@ -36,6 +38,35 @@ const Settings = () => {
     theme: 'light'
   });
 
+  // Paramètres d'email
+  const [emailSettings, setEmailSettings] = useState({
+    senderEmail: user?.email || '',
+    senderName: user?.name || '',
+    replyToEmail: '',
+    signature: '',
+    trackOpens: true,
+    trackClicks: true,
+    unsubscribeLink: true
+  });
+
+  // Charger les paramètres email existants
+  useEffect(() => {
+    const loadEmailSettings = async () => {
+      try {
+        const response = await authApi.getEmailSettings();
+        if (response.success) {
+          setEmailSettings(response.emailSettings);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des paramètres email:', error);
+      }
+    };
+
+    if (user) {
+      loadEmailSettings();
+    }
+  }, [user]);
+
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -62,8 +93,30 @@ const Settings = () => {
     }));
   };
 
+  const handleEmailSettingsSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const result = await authApi.updateEmailSettings(emailSettings);
+      if (result.success) {
+        setMessage('Paramètres email mis à jour avec succès !');
+      } else {
+        setMessage('Erreur lors de la mise à jour des paramètres email');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des paramètres email:', error);
+      setMessage('Erreur lors de la mise à jour des paramètres email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
+    { id: 'email', label: 'Email', icon: Send },
+    { id: 'imap', label: 'IMAP/POP3', icon: Database },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'general', label: 'Général', icon: Globe },
     { id: 'security', label: 'Sécurité', icon: Lock }
@@ -157,6 +210,174 @@ const Settings = () => {
                     {loading ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Onglet Email */}
+            {activeTab === 'email' && (
+              <div className="settings-section">
+                <h2 className="settings-section-title">
+                  <Send size={20} />
+                  Parametres d'envoi email
+                </h2>
+
+                <form onSubmit={handleEmailSettingsSubmit} className="settings-form">
+                  <div className="form-section">
+                    <h3>Identité de l'expéditeur</h3>
+                    <p className="form-section-description">
+                      Ces informations seront utilisées pour l'envoi de vos campagnes email
+                    </p>
+
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Email d'expédition</label>
+                        <input
+                          type="email"
+                          value={emailSettings.senderEmail}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, senderEmail: e.target.value }))}
+                          placeholder="votre@email.com"
+                          required
+                        />
+                        <small className="form-help">
+                          L'adresse email qui apparaîtra comme expéditeur de vos campagnes
+                        </small>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Nom d'expéditeur</label>
+                        <input
+                          type="text"
+                          value={emailSettings.senderName}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, senderName: e.target.value }))}
+                          placeholder="Votre nom ou nom d'entreprise"
+                          required
+                        />
+                        <small className="form-help">
+                          Le nom qui apparaîtra comme expéditeur de vos campagnes
+                        </small>
+                      </div>
+
+                      <div className="form-group form-group-full">
+                        <label>Email de réponse (optionnel)</label>
+                        <input
+                          type="email"
+                          value={emailSettings.replyToEmail}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, replyToEmail: e.target.value }))}
+                          placeholder="reponse@votre-domaine.com"
+                        />
+                        <small className="form-help">
+                          Si différent de l'email d'expédition, les réponses seront dirigées vers cette adresse
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h3>Signature email</h3>
+                    <div className="form-group">
+                      <label>Signature automatique</label>
+                      <textarea
+                        value={emailSettings.signature}
+                        onChange={(e) => setEmailSettings(prev => ({ ...prev, signature: e.target.value }))}
+                        placeholder="Votre signature professionnelle..."
+                        rows={4}
+                        className="form-textarea"
+                      />
+                      <small className="form-help">
+                        Cette signature sera automatiquement ajoutée à la fin de vos emails
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h3>Suivi et analytics</h3>
+                    <div className="settings-toggles">
+                      <div className="settings-toggle-item">
+                        <div className="toggle-info">
+                          <label>Suivi des ouvertures</label>
+                          <p>Suivre quand vos emails sont ouverts par les destinataires</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={emailSettings.trackOpens}
+                            onChange={(e) => setEmailSettings(prev => ({ ...prev, trackOpens: e.target.checked }))}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+
+                      <div className="settings-toggle-item">
+                        <div className="toggle-info">
+                          <label>Suivi des clics</label>
+                          <p>Suivre quand les liens dans vos emails sont cliqués</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={emailSettings.trackClicks}
+                            onChange={(e) => setEmailSettings(prev => ({ ...prev, trackClicks: e.target.checked }))}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+
+                      <div className="settings-toggle-item">
+                        <div className="toggle-info">
+                          <label>Lien de désabonnement</label>
+                          <p>Ajouter automatiquement un lien de désabonnement à vos emails</p>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={emailSettings.unsubscribeLink}
+                            onChange={(e) => setEmailSettings(prev => ({ ...prev, unsubscribeLink: e.target.checked }))}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <div className="email-preview">
+                      <h3>Aperçu de l'expéditeur</h3>
+                      <div className="preview-card">
+                        <div className="preview-from">
+                          <strong>{emailSettings.senderName || 'Nom expéditeur'}</strong>
+                          <span>&lt;{emailSettings.senderEmail || 'email@example.com'}&gt;</span>
+                        </div>
+                        {emailSettings.replyToEmail && (
+                          <div className="preview-reply">
+                            Répondre à: {emailSettings.replyToEmail}
+                          </div>
+                        )}
+                        {emailSettings.signature && (
+                          <div className="preview-signature">
+                            <hr />
+                            <div>{emailSettings.signature}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={loading}
+                  >
+                    <Save size={16} />
+                    {loading ? 'Sauvegarde...' : 'Sauvegarder les paramètres email'}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Onglet IMAP/POP3 */}
+            {activeTab === 'imap' && (
+              <div className="settings-section">
+                <IMAPSettings />
               </div>
             )}
 

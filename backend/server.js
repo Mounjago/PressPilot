@@ -21,6 +21,7 @@ require('./models/Project');
 require('./models/Campaign');
 require('./models/Contact');
 require('./models/EmailTracking');
+require('./models/IMAPConfiguration');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -32,6 +33,8 @@ const incomingEmailsRoutes = require('./routes/incoming-emails');
 const contactsRoutes = require('./routes/contacts');
 const artistsRoutes = require('./routes/artists');
 const projectsRoutes = require('./routes/projects');
+const imapRoutes = require('./routes/imap');
+const queueRoutes = require('./routes/queue');
 
 // Configuration du serveur
 const app = express();
@@ -184,6 +187,8 @@ app.use('/api/incoming', incomingEmailsRoutes);
 app.use('/api/contacts', contactsRoutes);
 app.use('/api/artists', artistsRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/imap', imapRoutes);
+app.use('/api/queue', queueRoutes);
 
 // Route de statistiques de la base de données (développement)
 if (NODE_ENV === 'development') {

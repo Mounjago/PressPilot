@@ -1003,9 +1003,8 @@ const Artists = () => {
           </p>
         </div>
       )}
-      </div>
 
-          {showCreateForm && (
+      {showCreateForm && (
             <section className="dashboard-section">
               <div className="campaigns-section">
                 <div className="section-header">

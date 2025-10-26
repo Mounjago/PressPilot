@@ -243,7 +243,7 @@ const Phoning = () => {
               Tableau de bord des appels
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1 leading-tight">
-              Gérez vos sessions d'appels par artiste et projet
+              Gerez vos sessions d'appels par artiste et projet
             </p>
           </div>
           <button className="btn-primary" onClick={startNewSession}>
@@ -252,7 +252,13 @@ const Phoning = () => {
         </div>
 
         {/* Statistiques globales */}
-        <div className="metrics-grid">
+        <div className="metrics-grid"
+             style={{
+               display: 'grid',
+               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+               gap: '1.5rem',
+               marginBottom: '2rem'
+             }}>
           <div className="metric-card">
             <div className="metric-header">
               <Target className="metric-icon" />
@@ -264,7 +270,7 @@ const Phoning = () => {
           <div className="metric-card">
             <div className="metric-header">
               <Phone className="metric-icon" />
-              <span className="metric-label">Appels passés</span>
+              <span className="metric-label">Appels passes</span>
             </div>
             <div className="metric-value">{callStats.totalCalls}</div>
           </div>
@@ -272,7 +278,7 @@ const Phoning = () => {
           <div className="metric-card">
             <div className="metric-header">
               <TrendingUp className="metric-icon" />
-              <span className="metric-label">Décrochés</span>
+              <span className="metric-label">Decroches</span>
             </div>
             <div className="metric-value">{callStats.answeredCalls}</div>
           </div>
@@ -280,7 +286,7 @@ const Phoning = () => {
           <div className="metric-card">
             <div className="metric-header">
               <Clock className="metric-icon" />
-              <span className="metric-label">Durée totale</span>
+              <span className="metric-label">Duree totale</span>
             </div>
             <div className="metric-value">{formatDuration(callStats.totalDuration)}</div>
           </div>
@@ -296,17 +302,28 @@ const Phoning = () => {
           <div className="metric-card">
             <div className="metric-header">
               <TrendingUp className="metric-icon" />
-              <span className="metric-label">Taux de succès</span>
+              <span className="metric-label">Taux de succes</span>
             </div>
             <div className="metric-value">{Math.round(callStats.avgSuccessRate * 100)}%</div>
           </div>
         </div>
 
-        <div className="dashboard-content">
+        <div className="dashboard-content" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2rem'
+        }}>
           {/* Sessions actives */}
           <div className="dashboard-section">
-            <div className="section-header">
-              <h3>Sessions actives ({activeSessions.length})</h3>
+            <div className="section-header" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+                Sessions actives ({activeSessions.length})
+              </h3>
               {activeSessions.length > 0 && (
                 <button className="btn-secondary" onClick={() => window.location.href = '/analytics'}>
                   Voir toutes les analyses
@@ -318,13 +335,17 @@ const Phoning = () => {
               <div className="empty-state">
                 <Phone size={48} className="empty-icon" />
                 <h4>Aucune session active</h4>
-                <p>Créez votre première session d'appels pour commencer</p>
+                <p>Creez votre premiere session d'appels pour commencer</p>
                 <button className="btn-primary" onClick={startNewSession}>
-                  Créer une session
+                  Creer une session
                 </button>
               </div>
             ) : (
-              <div className="sessions-grid">
+              <div className="sessions-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                gap: '1.5rem'
+              }}>
                 {activeSessions.map((session) => (
                   <div key={session._id} className="session-card">
                     <div className="session-header">
@@ -351,7 +372,7 @@ const Phoning = () => {
                     <div className="session-stats">
                       <div className="stat">
                         <span className="stat-value">{session.stats?.answeredCalls || 0}</span>
-                        <span className="stat-label">Réponses</span>
+                        <span className="stat-label">Reponses</span>
                       </div>
                       <div className="stat">
                         <span className="stat-value">{session.remainingContacts || 0}</span>
@@ -359,7 +380,7 @@ const Phoning = () => {
                       </div>
                       <div className="stat">
                         <span className="stat-value">{session.successRate || 0}%</span>
-                        <span className="stat-label">Succès</span>
+                        <span className="stat-label">Succes</span>
                       </div>
                     </div>
 
@@ -378,11 +399,18 @@ const Phoning = () => {
             )}
           </div>
 
-          {/* Sessions récentes */}
+          {/* Sessions recentes */}
           {recentSessions.length > 0 && (
             <div className="dashboard-section">
-              <div className="section-header">
-                <h3>Sessions récentes</h3>
+              <div className="section-header" style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+                  Sessions recentes
+                </h3>
               </div>
 
               <div className="recent-sessions-list">
@@ -396,9 +424,9 @@ const Phoning = () => {
 
                     <div className="session-quick-stats">
                       <span>{session.stats?.totalCalls || 0} appels</span>
-                      <span>{session.stats?.answeredCalls || 0} réponses</span>
+                      <span>{session.stats?.answeredCalls || 0} reponses</span>
                       <span className={`session-status ${session.status}`}>
-                        {session.status === 'completed' ? 'Terminée' :
+                        {session.status === 'completed' ? 'Terminee' :
                          session.status === 'active' ? 'Active' :
                          session.status === 'paused' ? 'Pause' : session.status}
                       </span>
@@ -414,7 +442,7 @@ const Phoning = () => {
                         </button>
                       )}
                       <button className="btn-tertiary">
-                        Voir détails
+                        Voir details
                       </button>
                     </div>
                   </div>
@@ -424,13 +452,30 @@ const Phoning = () => {
           )}
         </div>
 
-        <div className="getting-started">
-          <h3>Comment ça marche ?</h3>
-          <div className="workflow-steps-guide">
+        <div className="getting-started" style={{
+          background: '#f8fafc',
+          borderRadius: '12px',
+          padding: '2rem',
+          marginTop: '2rem'
+        }}>
+          <h3 style={{
+            textAlign: 'center',
+            marginBottom: '2rem',
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            color: '#1f2937'
+          }}>
+            Comment ca marche ?
+          </h3>
+          <div className="workflow-steps-guide" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '1.5rem'
+          }}>
             <div className="step-guide">
               <div className="step-number">1</div>
               <div className="step-content">
-                <h4>Sélectionnez un artiste</h4>
+                <h4>Selectionnez un artiste</h4>
                 <p>Choisissez l'artiste pour lequel vous voulez faire des appels</p>
               </div>
             </div>
@@ -444,8 +489,8 @@ const Phoning = () => {
             <div className="step-guide">
               <div className="step-number">3</div>
               <div className="step-content">
-                <h4>Créez la session</h4>
-                <p>Configurez vos objectifs et sélectionnez vos contacts</p>
+                <h4>Creez la session</h4>
+                <p>Configurez vos objectifs et selectionnez vos contacts</p>
               </div>
             </div>
             <div className="step-guide">

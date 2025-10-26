@@ -10,7 +10,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,7 +23,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+      localStorage.removeItem('token'); // Nettoyer aussi l'ancien token
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -109,14 +111,15 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     if (token) {
-      api.get('/user/profile')
+      api.get('/auth/me')
         .then(response => {
           setUser(response.data);
         })
         .catch(() => {
-          localStorage.removeItem('token');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('authUser');
         })
         .finally(() => {
           setLoading(false);
@@ -131,7 +134,8 @@ export const useAuth = () => {
       const response = await api.post('/auth/login', credentials);
       const { token, user: userData } = response.data;
 
-      localStorage.setItem('token', token);
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('authUser', JSON.stringify(userData));
       setUser(userData);
 
       return { success: true, user: userData };
@@ -141,7 +145,9 @@ export const useAuth = () => {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    localStorage.removeItem('token'); // Nettoyer aussi l'ancien token
     setUser(null);
     window.location.href = '/';
   }, []);
@@ -151,7 +157,8 @@ export const useAuth = () => {
       const response = await api.post('/auth/register', userData);
       const { token, user: newUser } = response.data;
 
-      localStorage.setItem('token', token);
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('authUser', JSON.stringify(newUser));
       setUser(newUser);
 
       return { success: true, user: newUser };

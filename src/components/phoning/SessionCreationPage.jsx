@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Target, Calendar, Clock, Plus, X, Search } from 'lucide-react';
 import LoadingSpinner from '../LoadingSpinner';
+import { contactsApi } from '../../api';
 import '../../styles/Dashboard.css';
 
 const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
@@ -35,23 +36,49 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
   const loadContacts = async () => {
     try {
       setContactsLoading(true);
+      console.log('🔄 Chargement des contacts pour la session...');
 
+      // Debug authentication
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/contacts', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('🔐 Auth token exists:', !!token);
+      console.log('🔐 Token length:', token?.length);
+      console.log('🔐 Token preview:', token?.substring(0, 20) + '...');
 
-      if (!response.ok) {
-        throw new Error('Erreur lors du chargement des contacts');
+      // Si le token semble invalide, nettoyer le localStorage et rediriger
+      if (!token || token.length < 20 || token === 'undefined' || token === 'null') {
+        console.warn('🚨 Token invalide détecté, nettoyage du localStorage...');
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
       }
 
-      const contacts = await response.json();
+      const response = await contactsApi.getAll();
+      console.log('📋 Response complete:', response);
+      console.log('📋 Response type:', typeof response);
+      console.log('📋 Response isArray:', Array.isArray(response));
+
+      // L'API peut retourner un objet avec des contacts ou directement un tableau
+      const contacts = Array.isArray(response) ? response : (response.contacts || response.data || []);
+      console.log('📋 Contacts extraits:', contacts);
+      console.log('📋 Contacts count:', contacts.length);
+      console.log('📋 First contact:', contacts[0]);
+
       setAvailableContacts(contacts);
+      console.log('📋 availableContacts state updated with', contacts.length, 'contacts');
     } catch (error) {
-      console.error('Erreur lors du chargement des contacts:', error);
+      console.error('❌ Erreur lors du chargement des contacts:', error);
+      console.error('❌ Error details:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+
+      // Si erreur d'authentification, nettoyer et rediriger
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn('🚨 Erreur d\'authentification, nettoyage du localStorage...');
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
+      setAvailableContacts([]);
     } finally {
       setContactsLoading(false);
     }
@@ -103,7 +130,13 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
   };
 
   const getFilteredContacts = () => {
-    return availableContacts.filter(contact => {
+    console.log('🔍 getFilteredContacts called');
+    console.log('🔍 availableContacts.length:', availableContacts.length);
+    console.log('🔍 searchTerm:', searchTerm);
+    console.log('🔍 categoryFilter:', categoryFilter);
+    console.log('🔍 selectedContacts.length:', selectedContacts.length);
+
+    const filtered = availableContacts.filter(contact => {
       const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            contact.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -112,8 +145,13 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
 
       const notSelected = !selectedContacts.find(c => c.contactId === contact._id);
 
+      console.log(`🔍 Contact ${contact.name}: search=${matchesSearch}, category=${matchesCategory}, notSelected=${notSelected}`);
+
       return matchesSearch && matchesCategory && notSelected;
     });
+
+    console.log('🔍 Filtered contacts count:', filtered.length);
+    return filtered;
   };
 
   const handleCreateSession = async () => {
@@ -193,7 +231,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             <ArrowLeft size={20} />
           </button>
           <div className="step-title-section">
-            <h2>Création de la session d'appels</h2>
+            <h2>Creation de la session d'appels</h2>
             <p className="step-description">
               Configurez votre session d'appels pour <strong>{project.name}</strong> de <strong>{artist.name}</strong>
             </p>
@@ -201,7 +239,14 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
         </div>
       </div>
 
-      <div className="session-creation-form">
+      <div className="session-creation-form" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '0 20px'
+      }}>
         <div className="form-section">
           <h3>Informations de la session</h3>
 
@@ -236,7 +281,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             <div className="form-group">
               <label htmlFor="totalCalls">
                 <Target className="label-icon" />
-                Nombre d'appels prévus
+                Nombre d'appels prevus
               </label>
               <input
                 type="number"
@@ -251,7 +296,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             <div className="form-group">
               <label htmlFor="expectedAnswers">
                 <Users className="label-icon" />
-                Réponses attendues
+                Reponses attendues
               </label>
               <input
                 type="number"
@@ -271,7 +316,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
               value={sessionData.targets.targetOutcome}
               onChange={(e) => handleInputChange('targets.targetOutcome', e.target.value)}
             >
-              <option value="coverage">Couverture médiatique</option>
+              <option value="coverage">Couverture mediatique</option>
               <option value="interviews">Interviews</option>
               <option value="reviews">Reviews/Critiques</option>
               <option value="networking">Networking</option>
@@ -283,13 +328,13 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
           <div className="section-header">
             <h3>Contacts à appeler</h3>
             <span className="contacts-count">
-              {selectedContacts.length} contact{selectedContacts.length > 1 ? 's' : ''} sélectionné{selectedContacts.length > 1 ? 's' : ''}
+              {selectedContacts.length} contact{selectedContacts.length > 1 ? 's' : ''} selectionne{selectedContacts.length > 1 ? 's' : ''}
             </span>
           </div>
 
           {selectedContacts.length > 0 && (
             <div className="selected-contacts">
-              <h4>Contacts sélectionnés :</h4>
+              <h4>Contacts selectionnes :</h4>
               <div className="selected-contacts-list">
                 {selectedContacts.map((item) => (
                   <div key={item.contactId} className="selected-contact-item">
@@ -312,9 +357,9 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
                         className="priority-select"
                         style={{ borderColor: getPriorityColor(item.priority) }}
                       >
-                        <option value="high">Haute priorité</option>
-                        <option value="medium">Priorité moyenne</option>
-                        <option value="low">Priorité basse</option>
+                        <option value="high">Haute priorite</option>
+                        <option value="medium">Priorite moyenne</option>
+                        <option value="low">Priorite basse</option>
                       </select>
 
                       <input
@@ -338,8 +383,18 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             </div>
           )}
 
-          <div className="contacts-selector">
-            <div className="contacts-search">
+          <div className="contacts-selector" style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '20px',
+            backgroundColor: '#f9fafb'
+          }}>
+            <div className="contacts-search" style={{
+              display: 'flex',
+              gap: '16px',
+              marginBottom: '20px',
+              alignItems: 'center'
+            }}>
               <div className="search-box">
                 <Search className="search-icon" />
                 <input
@@ -356,7 +411,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="filter-select"
               >
-                <option value="all">Toutes les catégories</option>
+                <option value="all">Toutes les categories</option>
                 {uniqueCategories.map(category => (
                   <option key={category} value={category}>
                     {category}
@@ -368,7 +423,12 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             {contactsLoading ? (
               <LoadingSpinner />
             ) : (
-              <div className="available-contacts-list">
+              <div className="available-contacts-list" style={{
+                maxHeight: '400px',
+                overflowY: 'auto',
+                display: 'grid',
+                gap: '12px'
+              }}>
                 {getFilteredContacts().map((contact) => (
                   <div key={contact._id} className="available-contact-item">
                     <div className="contact-info">
@@ -396,7 +456,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
 
                 {getFilteredContacts().length === 0 && (
                   <div className="no-contacts">
-                    <p>Aucun contact disponible avec ces critères</p>
+                    <p>Aucun contact disponible avec ces criteres</p>
                   </div>
                 )}
               </div>
@@ -410,7 +470,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
             onClick={handleCreateSession}
             disabled={loading || !sessionData.sessionName.trim()}
           >
-            Créer la session d'appels
+            Creer la session d'appels
           </button>
           <button className="btn-secondary" onClick={onBack}>
             Retour
@@ -422,7 +482,7 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
         <div className="workflow-steps">
           <div className="step completed">1. Artiste: {artist.name}</div>
           <div className="step completed">2. Projet: {project.name}</div>
-          <div className="step active">3. Créer la session</div>
+          <div className="step active">3. Creer la session</div>
           <div className="step">4. Commencer les appels</div>
         </div>
       </div>

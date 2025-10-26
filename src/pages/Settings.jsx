@@ -49,6 +49,14 @@ const Settings = () => {
     unsubscribeLink: true
   });
 
+  // Modal de changement de mot de passe
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
   // Charger les paramètres email existants
   useEffect(() => {
     const loadEmailSettings = async () => {
@@ -108,6 +116,48 @@ const Settings = () => {
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des paramètres email:', error);
       setMessage('Erreur lors de la mise à jour des paramètres email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      // Validation des mots de passe
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setMessage('Les nouveaux mots de passe ne correspondent pas');
+        return;
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        setMessage('Le nouveau mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+
+      // Appel API pour changer le mot de passe
+      const result = await authApi.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+
+      if (result.success) {
+        setMessage('Mot de passe mis à jour avec succès !');
+        setShowPasswordModal(false);
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      } else {
+        setMessage(result.message || 'Erreur lors du changement de mot de passe');
+      }
+    } catch (error) {
+      console.error('Erreur lors du changement de mot de passe:', error);
+      setMessage('Erreur lors du changement de mot de passe');
     } finally {
       setLoading(false);
     }
@@ -496,7 +546,10 @@ const Settings = () => {
                       <h3>Changer le mot de passe</h3>
                       <p>Mettez à jour votre mot de passe régulièrement pour maintenir la sécurité</p>
                     </div>
-                    <button className="btn-secondary">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setShowPasswordModal(true)}
+                    >
                       Modifier le mot de passe
                     </button>
                   </div>
@@ -536,6 +589,174 @@ const Settings = () => {
             )}
           </div>
         </div>
+
+        {/* Modal de changement de mot de passe */}
+        {showPasswordModal && (
+          <div className="modal-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div className="modal" style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '30px',
+              width: '400px',
+              maxWidth: '90vw',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+            }}>
+              <h3 style={{
+                margin: '0 0 20px 0',
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#1f2937'
+              }}>
+                Changer le mot de passe
+              </h3>
+
+              <form onSubmit={handlePasswordChange}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '6px'
+                  }}>
+                    Mot de passe actuel
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      currentPassword: e.target.value
+                    }))}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '6px'
+                  }}>
+                    Nouveau mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      newPassword: e.target.value
+                    }))}
+                    required
+                    minLength="6"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '6px'
+                  }}>
+                    Confirmer le nouveau mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({
+                      ...prev,
+                      confirmPassword: e.target.value
+                    }))}
+                    required
+                    minLength="6"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  marginTop: '30px'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordModal(false);
+                      setPasswordData({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
+                    }}
+                    className="btn-secondary"
+                    style={{
+                      padding: '10px 20px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      backgroundColor: 'white',
+                      color: '#374151',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary"
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      backgroundColor: '#0ED894',
+                      color: 'white',
+                      border: 'none',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.6 : 1
+                    }}
+                  >
+                    {loading ? 'Changement...' : 'Changer le mot de passe'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
     </Layout>
   );
 };

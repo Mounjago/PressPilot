@@ -56,6 +56,10 @@ const Projects = () => {
       return;
     }
 
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3535';
+    console.log('🎵 Fetching Odesli links for:', spotifyUrl);
+    console.log('🔗 Using API URL:', apiUrl);
+
     setNewProject(prev => ({ ...prev, isLoadingLinks: true }));
 
     try {
@@ -64,7 +68,7 @@ const Projects = () => {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
-      const response = await fetch('http://localhost:3535/odesli/links', {
+      const response = await fetch(`${apiUrl}/odesli/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -75,9 +79,17 @@ const Projects = () => {
 
       clearTimeout(timeoutId);
 
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || `Erreur HTTP: ${response.status}`;
+        } catch (e) {
+          errorMessage = `Erreur HTTP: ${response.status} - ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -163,16 +175,22 @@ const Projects = () => {
         throw new Error('Aucune donnée trouvée pour cette URL');
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des liens Odesli:', error);
+      console.error('❌ Erreur lors de la récupération des liens Odesli:', error);
 
       let errorMessage = 'Erreur lors de la récupération des informations Spotify';
+
       if (error.name === 'AbortError') {
         errorMessage = 'Timeout - La récupération a pris trop de temps (plus de 30 secondes)';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Impossible de se connecter au serveur. Vérifiez que le backend est démarré.';
       } else if (error.message.includes('HTTP')) {
-        errorMessage = 'URL Spotify non valide ou non trouvée';
+        errorMessage = error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
-      alert(errorMessage);
+      console.error('💥 Message d\'erreur détaillé:', errorMessage);
+      alert(`${errorMessage}\n\nVérifiez la console pour plus de détails.`);
       setNewProject(prev => ({ ...prev, isLoadingLinks: false }));
     }
   };
@@ -251,6 +269,10 @@ const Projects = () => {
       return;
     }
 
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3535';
+    console.log('🎵 Fetching Odesli links for edit:', spotifyUrl);
+    console.log('🔗 Using API URL:', apiUrl);
+
     setEditingProject(prev => ({ ...prev, isLoadingLinks: true }));
 
     try {
@@ -259,7 +281,7 @@ const Projects = () => {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
-      const response = await fetch('http://localhost:3535/odesli/links', {
+      const response = await fetch(`${apiUrl}/odesli/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -270,9 +292,17 @@ const Projects = () => {
 
       clearTimeout(timeoutId);
 
+      console.log('📡 Response status (edit):', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || `Erreur HTTP: ${response.status}`;
+        } catch (e) {
+          errorMessage = `Erreur HTTP: ${response.status} - ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -333,16 +363,22 @@ const Projects = () => {
         throw new Error('Aucune donnée trouvée pour cette URL');
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des liens Odesli:', error);
+      console.error('❌ Erreur lors de la récupération des liens Odesli (edit):', error);
 
       let errorMessage = 'Erreur lors de la récupération des informations Spotify';
+
       if (error.name === 'AbortError') {
         errorMessage = 'Timeout - La récupération a pris trop de temps (plus de 30 secondes)';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Impossible de se connecter au serveur. Vérifiez que le backend est démarré.';
       } else if (error.message.includes('HTTP')) {
-        errorMessage = 'URL Spotify non valide ou non trouvée';
+        errorMessage = error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
-      alert(errorMessage);
+      console.error('💥 Message d\'erreur détaillé (edit):', errorMessage);
+      alert(`${errorMessage}\n\nVérifiez la console pour plus de détails.`);
       setEditingProject(prev => ({ ...prev, isLoadingLinks: false }));
     }
   };

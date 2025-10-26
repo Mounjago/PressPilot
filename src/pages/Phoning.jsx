@@ -239,8 +239,12 @@ const Phoning = () => {
       <div className="phoning-dashboard">
         <div className="dashboard-header">
           <div className="header-content">
-            <h2>Tableau de bord des appels</h2>
-            <p>Gérez vos sessions d'appels par artiste et projet</p>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900">
+              Tableau de bord des appels
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 leading-tight">
+              Gérez vos sessions d'appels par artiste et projet
+            </p>
           </div>
           <button className="btn-primary" onClick={startNewSession}>
             + Nouvelle session d'appels

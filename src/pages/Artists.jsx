@@ -1,22 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import Layout from "../components/Layout";
 import { uploadImageToCloudinary } from "../services/cloudinary";
+import artistsService from "../services/artistsApi";
 
 const Artists = () => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingArtist, setEditingArtist] = useState(null);
-  // Initialiser les artistes depuis localStorage ou avec un tableau vide
-  const [artists, setArtists] = useState(() => {
-    const savedArtists = localStorage.getItem('presspilot-artists');
-    if (savedArtists) {
-      return JSON.parse(savedArtists);
-    }
-    return [];
-  });
+  const [artists, setArtists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [newArtist, setNewArtist] = useState({
     name: "",
@@ -48,6 +44,26 @@ const Artists = () => {
     dropbox: false,
     googledrive: false
   });
+
+  // Charger les artistes depuis l'API au montage du composant
+  useEffect(() => {
+    loadArtists();
+  }, []);
+
+  const loadArtists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const artistsData = await artistsService.getArtists();
+      setArtists(artistsData);
+      console.log('✅ Artistes chargés depuis l\'API:', artistsData.length);
+    } catch (err) {
+      console.error('❌ Erreur lors du chargement des artistes:', err);
+      setError('Impossible de charger les artistes. Vérifiez votre connexion.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fonction pour gérer l'upload des fichiers EPK
   const handleFileUpload = async (event, fileType) => {
@@ -415,7 +431,7 @@ const Artists = () => {
     }
   };
 
-  const handleCreateArtist = (e) => {
+  const handleCreateArtist = async (e) => {
     e.preventDefault();
 
     if (!newArtist.name.trim()) {
@@ -423,23 +439,34 @@ const Artists = () => {
       return;
     }
 
-    const artist = {
-      id: Date.now(),
-      ...newArtist,
-      avatar: newArtist.avatar || `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${newArtist.name.charAt(0)}`,
-      projectsCount: 0,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
+    try {
+      setLoading(true);
 
-    console.log('Création artiste:', artist);
-    const updatedArtists = [...artists, artist];
-    setArtists(updatedArtists);
+      const artistData = {
+        ...newArtist,
+        avatar: newArtist.avatar || `https://via.placeholder.com/60x60/0ED894/FFFFFF?text=${newArtist.name.charAt(0)}`,
+        projectsCount: 0
+      };
 
-    // Sauvegarder dans localStorage
-    localStorage.setItem('presspilot-artists', JSON.stringify(updatedArtists));
+      console.log('Création artiste via API:', artistData);
 
-    // Notification de succès
-    alert(`Artiste "${newArtist.name}" créé avec succès !`);
+      // Créer l'artiste via l'API
+      const createdArtist = await artistsService.createArtist(artistData);
+
+      // Mettre à jour la liste locale
+      setArtists(prevArtists => [...prevArtists, createdArtist]);
+
+      // Notification de succès
+      alert(`Artiste "${newArtist.name}" créé avec succès et synchronisé sur tous vos appareils !`);
+
+      console.log('✅ Artiste créé avec succès:', createdArtist);
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de l\'artiste:', error);
+      alert('Erreur lors de la création de l\'artiste. Veuillez réessayer.');
+      return;
+    } finally {
+      setLoading(false);
+    }
     setNewArtist({
       name: "",
       genre: "",
@@ -843,7 +870,7 @@ const Artists = () => {
   };
 
   // Fonction pour mettre à jour un artiste
-  const handleUpdateArtist = (e) => {
+  const handleUpdateArtist = async (e) => {
     e.preventDefault();
 
     if (!editingArtist.name.trim()) {
@@ -851,16 +878,32 @@ const Artists = () => {
       return;
     }
 
-    const updatedArtists = artists.map(artist =>
-      artist.id === editingArtist.id ? editingArtist : artist
-    );
+    try {
+      setLoading(true);
 
-    setArtists(updatedArtists);
-    localStorage.setItem('presspilot-artists', JSON.stringify(updatedArtists));
+      console.log('Mise à jour artiste via API:', editingArtist);
 
-    alert(`Artiste "${editingArtist.name}" modifié avec succès !`);
-    setShowEditForm(false);
-    setEditingArtist(null);
+      // Mettre à jour l'artiste via l'API
+      const updatedArtist = await artistsService.updateArtist(editingArtist.id || editingArtist._id, editingArtist);
+
+      // Mettre à jour la liste locale
+      setArtists(prevArtists =>
+        prevArtists.map(artist =>
+          (artist.id === editingArtist.id || artist._id === editingArtist._id) ? updatedArtist : artist
+        )
+      );
+
+      alert(`Artiste "${editingArtist.name}" modifié avec succès et synchronisé sur tous vos appareils !`);
+      setShowEditForm(false);
+      setEditingArtist(null);
+
+      console.log('✅ Artiste mis à jour avec succès:', updatedArtist);
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de l\'artiste:', error);
+      alert('Erreur lors de la mise à jour de l\'artiste. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -869,9 +912,23 @@ const Artists = () => {
         <button
           className="btn-primary"
           onClick={() => setShowCreateForm(true)}
+          disabled={loading}
         >
           + Nouvel artiste
         </button>
+        {loading && (
+          <div className="loading-indicator">
+            <span>Synchronisation en cours...</span>
+          </div>
+        )}
+        {error && (
+          <div className="error-message">
+            <span>{error}</span>
+            <button onClick={loadArtists} className="btn-tertiary">
+              Réessayer
+            </button>
+          </div>
+        )}
       </div>
 
           {showCreateForm && (

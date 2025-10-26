@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuration de l'API
-const API_BASE_URL = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'https://api.mdmcmusicads.com/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'https://backend-presspilot-production.up.railway.app';
 
 const campaignsApi = axios.create({
   baseURL: API_BASE_URL,

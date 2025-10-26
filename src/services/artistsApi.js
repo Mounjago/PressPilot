@@ -43,7 +43,7 @@ const artistsService = {
   // Récupérer tous les artistes de l'utilisateur
   async getArtists() {
     try {
-      const response = await artistsApi.get('/artists');
+      const response = await artistsApi.get('/api/artists');
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des artistes:', error);
@@ -58,7 +58,7 @@ const artistsService = {
   // Créer un nouvel artiste
   async createArtist(artistData) {
     try {
-      const response = await artistsApi.post('/artists', artistData);
+      const response = await artistsApi.post('/api/artists', artistData);
 
       // Synchroniser avec localStorage
       const localArtists = JSON.parse(localStorage.getItem('presspilot-artists') || '[]');
@@ -90,7 +90,7 @@ const artistsService = {
   // Mettre à jour un artiste
   async updateArtist(artistId, artistData) {
     try {
-      const response = await artistsApi.put(`/artists/${artistId}`, artistData);
+      const response = await artistsApi.put(`/api/artists/${artistId}`, artistData);
 
       // Synchroniser avec localStorage
       const localArtists = JSON.parse(localStorage.getItem('presspilot-artists') || '[]');
@@ -126,7 +126,7 @@ const artistsService = {
   // Supprimer un artiste
   async deleteArtist(artistId) {
     try {
-      await artistsApi.delete(`/artists/${artistId}`);
+      await artistsApi.delete(`/api/artists/${artistId}`);
 
       // Synchroniser avec localStorage
       const localArtists = JSON.parse(localStorage.getItem('presspilot-artists') || '[]');
@@ -158,7 +158,7 @@ const artistsService = {
       }
 
       // Envoyer tous les artistes locaux vers l'API
-      const response = await artistsApi.post('/artists/sync', {
+      const response = await artistsApi.post('/api/artists/sync', {
         artists: localArtists
       });
 
@@ -180,7 +180,7 @@ const artistsService = {
   // Récupérer un artiste spécifique
   async getArtist(artistId) {
     try {
-      const response = await artistsApi.get(`/artists/${artistId}`);
+      const response = await artistsApi.get(`/api/artists/${artistId}`);
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'artiste:', error);
@@ -198,7 +198,7 @@ const artistsService = {
       const formData = new FormData();
       formData.append('avatar', imageFile);
 
-      const response = await artistsApi.post(`/artists/${artistId}/avatar`, formData, {
+      const response = await artistsApi.post(`/api/artists/${artistId}/avatar`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

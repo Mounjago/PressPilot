@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
-import { analyticsApi } from "../api";
+import { useDashboardData } from "../pages/Dashboard";
 
 ChartJS.register(
   CategoryScale,
@@ -21,83 +21,37 @@ ChartJS.register(
 );
 
 const StatsGraph = () => {
+  const { dashboardData, loading } = useDashboardData();
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: []
   });
-  const [loading, setLoading] = useState(true);
   const chartRef = useRef(null);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadData = async () => {
-      if (isMounted) {
-        await loadChartData();
-      }
-    };
-
-    loadData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const loadChartData = async () => {
-    try {
-      setLoading(true);
-
-      // Charger les données analytiques depuis l'API
-      const response = await analyticsApi.getDashboard('7d');
-
-      if (response && response.chartData) {
-        // Utiliser les vraies données de l'API
-        setChartData({
-          labels: response.chartData.labels || ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
-          datasets: response.chartData.datasets || [
-            {
-              label: "Ouvertures",
-              data: response.chartData.openings || [0, 0, 0, 0, 0, 0, 0],
-              borderColor: "#0ED894",
-              backgroundColor: "#0ED894",
-              tension: 0.4
-            },
-            {
-              label: "Clics",
-              data: response.chartData.clicks || [0, 0, 0, 0, 0, 0, 0],
-              borderColor: "#6979F8",
-              backgroundColor: "#6979F8",
-              tension: 0.4
-            }
-          ]
-        });
-      } else {
-        // Données par défaut si l'API ne retourne rien
-        setChartData({
-          labels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
-          datasets: [
-            {
-              label: "Ouvertures",
-              data: [0, 0, 0, 0, 0, 0, 0],
-              borderColor: "#0ED894",
-              backgroundColor: "#0ED894",
-              tension: 0.4
-            },
-            {
-              label: "Clics",
-              data: [0, 0, 0, 0, 0, 0, 0],
-              borderColor: "#6979F8",
-              backgroundColor: "#6979F8",
-              tension: 0.4
-            }
-          ]
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données du graphique:', error);
-
-      // Données par défaut en cas d'erreur
+    // Use shared dashboard data instead of making separate API calls
+    if (dashboardData.chartData) {
+      setChartData({
+        labels: dashboardData.chartData.labels || ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+        datasets: dashboardData.chartData.datasets || [
+          {
+            label: "Ouvertures",
+            data: dashboardData.chartData.openings || [0, 0, 0, 0, 0, 0, 0],
+            borderColor: "#0ED894",
+            backgroundColor: "#0ED894",
+            tension: 0.4
+          },
+          {
+            label: "Clics",
+            data: dashboardData.chartData.clicks || [0, 0, 0, 0, 0, 0, 0],
+            borderColor: "#6979F8",
+            backgroundColor: "#6979F8",
+            tension: 0.4
+          }
+        ]
+      });
+    } else {
+      // Default data when no chart data available
       setChartData({
         labels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
         datasets: [
@@ -117,10 +71,8 @@ const StatsGraph = () => {
           }
         ]
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [dashboardData.chartData]);
 
   // Options optimisées pour mobile
   const options = {

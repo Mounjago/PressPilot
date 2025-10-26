@@ -1,46 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import "../styles/Dashboard.css";
-import { campaignsApi } from "../api";
+import { useDashboardData } from "../pages/Dashboard";
 
 const CampaignList = () => {
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCampaigns = async () => {
-      try {
-        setLoading(true);
-        const response = await campaignsApi.getAll();
-
-        if (isMounted) {
-          setCampaigns(response.campaigns || []);
-          setError("");
-        }
-      } catch (err) {
-        console.error("Erreur lors du chargement des campagnes :", err);
-        if (isMounted) {
-          setError("Impossible de charger les campagnes.");
-          setCampaigns([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchCampaigns();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { dashboardData, loading } = useDashboardData();
+  const campaigns = dashboardData.campaigns || [];
 
   if (loading) return <div className="campaigns-section">Chargement des campagnes...</div>;
-  if (error) return <div className="campaigns-section error-message">{error}</div>;
   if (campaigns.length === 0) return <div className="campaigns-section">Aucune campagne disponible.</div>;
 
   return (

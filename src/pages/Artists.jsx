@@ -4,8 +4,6 @@ import "../styles/Dashboard.css";
 import Layout from "../components/Layout";
 import { uploadImageToCloudinary } from "../services/cloudinary";
 import artistsService from "../services/artistsApi";
-import { migrationHelper } from "../utils/migrationHelper";
-import { tempSync } from "../utils/tempSync";
 
 const Artists = () => {
   const navigate = useNavigate();
@@ -933,74 +931,27 @@ const Artists = () => {
         )}
       </div>
 
-      {/* Section de migration - visible si pas d'artistes et API pas configurée */}
+      {/* Section vide - aucun artiste */}
       {!loading && artists.length === 0 && (
-        <div className="migration-section" style={{
+        <div className="empty-state" style={{
           background: '#f8f9fa',
           border: '1px solid #dee2e6',
           borderRadius: '8px',
-          padding: '20px',
+          padding: '40px 20px',
           margin: '20px 0',
           textAlign: 'center'
         }}>
-          <h3 style={{ color: '#495057', marginBottom: '15px' }}>🔄 Migration des données</h3>
+          <h3 style={{ color: '#495057', marginBottom: '15px' }}>👤 Aucun artiste pour le moment</h3>
           <p style={{ color: '#6c757d', marginBottom: '20px' }}>
-            Vos artistes ne sont pas encore synchronisés ? Utilisez ces outils pour migrer vos données.
+            Créez votre premier artiste pour commencer à gérer vos projets et campagnes de presse.
           </p>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="btn-primary"
-              onClick={migrationHelper.migrateArtistsToAPI}
-              style={{ minWidth: 'auto' }}
-            >
-              📤 Migrer depuis localStorage
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={migrationHelper.forceSyncWithAPI}
-              style={{ minWidth: 'auto' }}
-            >
-              📥 Synchroniser depuis API
-            </button>
-            <button
-              className="btn-tertiary"
-              onClick={migrationHelper.checkSyncStatus}
-              style={{ minWidth: 'auto' }}
-            >
-              📊 Vérifier statut
-            </button>
-          </div>
-
-          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #dee2e6' }}>
-            <h4 style={{ color: '#495057', marginBottom: '10px' }}>🚀 Solution rapide pour LesJack</h4>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                className="btn-warning"
-                onClick={tempSync.exportLesJack}
-                style={{ minWidth: 'auto', backgroundColor: '#fd7e14', color: 'white' }}
-              >
-                📤 Exporter LesJack (ordinateur)
-              </button>
-              <button
-                className="btn-success"
-                onClick={tempSync.importLesJack}
-                style={{ minWidth: 'auto', backgroundColor: '#198754', color: 'white' }}
-              >
-                📥 Importer LesJack (téléphone)
-              </button>
-              <button
-                className="btn-info"
-                onClick={tempSync.createTempLesJack}
-                style={{ minWidth: 'auto', backgroundColor: '#0dcaf0', color: 'white' }}
-              >
-                ➕ Créer LesJack temporaire
-              </button>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#868e96', marginTop: '15px' }}>
-            💡 Astuce: Ouvrez la console du navigateur (F12) pour voir les détails de migration
-          </p>
+          <button
+            className="btn-primary"
+            onClick={() => setShowCreateForm(true)}
+            style={{ padding: '12px 24px', fontSize: '16px' }}
+          >
+            + Créer mon premier artiste
+          </button>
         </div>
       )}
 

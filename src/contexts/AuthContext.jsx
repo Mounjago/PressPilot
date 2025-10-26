@@ -224,35 +224,16 @@ export const AuthProvider = ({ children }) => {
 
         console.log('📱 Storage check:', { hasToken: !!token, hasUser: !!user });
 
-        if (token && user) {
-          // Si nous avons un token et des données utilisateur, les utiliser directement
-          console.log('✅ Token and user data found in storage');
+        if (token && isTokenValid(token) && user) {
+          // Si nous avons un token valide et des données utilisateur, les utiliser directement
+          console.log('✅ Valid token and user data found in storage');
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
             payload: { token, user }
           });
 
-          // Vérification du token côté serveur
-          api.get('/api/auth/me')
-            .then(response => {
-              if (response.data.success) {
-                console.log('✅ Background token verification successful');
-                storage.setUser(response.data.user);
-                dispatch({
-                  type: AUTH_ACTIONS.UPDATE_PROFILE,
-                  payload: { user: response.data.user }
-                });
-              }
-            })
-            .catch(error => {
-              console.warn('⚠️ Background verification failed, continuing with cached data:', error.message);
-              // Si le token est invalide côté serveur, déconnecter l'utilisateur
-              if (error.response?.status === 401) {
-                console.log('🚫 Token invalid on server, logging out');
-                storage.clear();
-                dispatch({ type: AUTH_ACTIONS.LOGOUT });
-              }
-            });
+          // REMOVED: Background token verification to prevent request loops
+          // Only verify token on actual user actions, not on app initialization
         } else {
           // Token invalide ou inexistant
           console.log('🚫 No valid token found');

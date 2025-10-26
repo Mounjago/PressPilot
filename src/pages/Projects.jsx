@@ -67,32 +67,48 @@ const Projects = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
-      const response = await fetch(`${apiUrl}/odesli/links`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ url: spotifyUrl }),
-        signal: controller.signal
-      });
+      let data;
 
-      clearTimeout(timeoutId);
+      try {
+        // Essayer d'abord avec notre proxy backend
+        const response = await fetch(`${apiUrl}/odesli/links`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: spotifyUrl }),
+          signal: controller.signal
+        });
 
-      console.log('📡 Response status:', response.status);
+        console.log('📡 Response status:', response.status);
 
-      if (!response.ok) {
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || `Erreur HTTP: ${response.status}`;
-        } catch (e) {
-          errorMessage = `Erreur HTTP: ${response.status} - ${response.statusText}`;
+        if (!response.ok) {
+          throw new Error(`Backend unavailable: ${response.status}`);
         }
-        throw new Error(errorMessage);
+
+        data = await response.json();
+        console.log('✅ Used backend proxy for Odesli');
+
+      } catch (backendError) {
+        console.warn('⚠️ Backend proxy failed, trying direct API call:', backendError.message);
+
+        // Fallback: appeler directement l'API song.link
+        const directResponse = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'PressPilot/1.0'
+          }
+        });
+
+        if (!directResponse.ok) {
+          throw new Error(`Odesli API error: ${directResponse.status}`);
+        }
+
+        data = await directResponse.json();
+        console.log('✅ Used direct Odesli API call');
       }
 
-      const data = await response.json();
+      clearTimeout(timeoutId);
 
       if (data.linksByPlatform) {
         let projectUpdates = {
@@ -280,32 +296,48 @@ const Projects = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      // Utiliser notre proxy backend au lieu d'appeler directement l'API Odesli
-      const response = await fetch(`${apiUrl}/odesli/links`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ url: spotifyUrl }),
-        signal: controller.signal
-      });
+      let data;
 
-      clearTimeout(timeoutId);
+      try {
+        // Essayer d'abord avec notre proxy backend
+        const response = await fetch(`${apiUrl}/odesli/links`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: spotifyUrl }),
+          signal: controller.signal
+        });
 
-      console.log('📡 Response status (edit):', response.status);
+        console.log('📡 Response status (edit):', response.status);
 
-      if (!response.ok) {
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || `Erreur HTTP: ${response.status}`;
-        } catch (e) {
-          errorMessage = `Erreur HTTP: ${response.status} - ${response.statusText}`;
+        if (!response.ok) {
+          throw new Error(`Backend unavailable: ${response.status}`);
         }
-        throw new Error(errorMessage);
+
+        data = await response.json();
+        console.log('✅ Used backend proxy for Odesli (edit)');
+
+      } catch (backendError) {
+        console.warn('⚠️ Backend proxy failed for edit, trying direct API call:', backendError.message);
+
+        // Fallback: appeler directement l'API song.link
+        const directResponse = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'PressPilot/1.0'
+          }
+        });
+
+        if (!directResponse.ok) {
+          throw new Error(`Odesli API error: ${directResponse.status}`);
+        }
+
+        data = await directResponse.json();
+        console.log('✅ Used direct Odesli API call (edit)');
       }
 
-      const data = await response.json();
+      clearTimeout(timeoutId);
 
       if (data.linksByPlatform) {
         let projectUpdates = {

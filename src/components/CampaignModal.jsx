@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { X, Upload, Eye } from "lucide-react";
-import "../styles/Campaigns.css";
 
 const CampaignModal = ({ campaign, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -110,47 +109,69 @@ const CampaignModal = ({ campaign, onClose, onSave }) => {
   ];
 
   return (
-    <div className="campaign-modal">
-      <div className="campaign-modal-content">
-        <div className="campaign-modal-header">
-          <h2 className="campaign-modal-title">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-white border-b border-gray-200 sm:p-6">
+          <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
             {campaign ? "Modifier la campagne" : "Nouvelle campagne"}
           </h2>
-          <button className="campaign-modal-close" onClick={onClose}>
-            <X />
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 transition-colors rounded-lg hover:text-gray-600 hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form className="campaign-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Nom de la campagne *</label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+          {/* Nom de la campagne */}
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Nom de la campagne *
+            </label>
             <input
               type="text"
-              className={`form-input ${errors.name ? 'error' : ''}`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="Ex: Lancement Album - Dreams"
             />
-            {errors.name && <span className="form-error">{errors.name}</span>}
+            {errors.name && (
+              <span className="mt-1 text-sm text-red-600">{errors.name}</span>
+            )}
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Sujet de l'email *</label>
+          {/* Sujet de l'email */}
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Sujet de l'email *
+            </label>
             <input
               type="text"
-              className={`form-input ${errors.subject ? 'error' : ''}`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.subject ? 'border-red-500' : 'border-gray-300'
+              }`}
               value={formData.subject}
               onChange={(e) => handleChange('subject', e.target.value)}
               placeholder="Ex: 🎵 Découvrez le nouvel album de Nova - Dreams"
             />
-            {errors.subject && <span className="form-error">{errors.subject}</span>}
+            {errors.subject && (
+              <span className="mt-1 text-sm text-red-600">{errors.subject}</span>
+            )}
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Type de campagne</label>
+          {/* Type et Priorité - Mobile: Stack, Desktop: Side by side */}
+          <div className="grid gap-4 mb-4 sm:grid-cols-2">
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Type de campagne
+              </label>
               <select
-                className="form-select"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={formData.type}
                 onChange={(e) => handleChange('type', e.target.value)}
               >
@@ -162,10 +183,12 @@ const CampaignModal = ({ campaign, onClose, onSave }) => {
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Priorité</label>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Priorité
+              </label>
               <select
-                className="form-select"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={formData.priority}
                 onChange={(e) => handleChange('priority', e.target.value)}
               >
@@ -178,50 +201,72 @@ const CampaignModal = ({ campaign, onClose, onSave }) => {
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Artiste *</label>
+          {/* Artiste et Projet - Mobile: Stack, Desktop: Side by side */}
+          <div className="grid gap-4 mb-4 sm:grid-cols-2">
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Artiste *
+              </label>
               <input
                 type="text"
-                className={`form-input ${errors.artist ? 'error' : ''}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.artist ? 'border-red-500' : 'border-gray-300'
+                }`}
                 value={formData.artist}
                 onChange={(e) => handleChange('artist', e.target.value)}
                 placeholder="Nom de l'artiste"
               />
-              {errors.artist && <span className="form-error">{errors.artist}</span>}
+              {errors.artist && (
+                <span className="mt-1 text-sm text-red-600">{errors.artist}</span>
+              )}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Projet *</label>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Projet *
+              </label>
               <input
                 type="text"
-                className={`form-input ${errors.project ? 'error' : ''}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.project ? 'border-red-500' : 'border-gray-300'
+                }`}
                 value={formData.project}
                 onChange={(e) => handleChange('project', e.target.value)}
                 placeholder="Nom du projet/album/single"
               />
-              {errors.project && <span className="form-error">{errors.project}</span>}
+              {errors.project && (
+                <span className="mt-1 text-sm text-red-600">{errors.project}</span>
+              )}
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Nombre de destinataires *</label>
+          {/* Destinataires et Template - Mobile: Stack, Desktop: Side by side */}
+          <div className="grid gap-4 mb-4 sm:grid-cols-2">
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Nombre de destinataires *
+              </label>
               <input
                 type="number"
-                className={`form-input ${errors.recipients_count ? 'error' : ''}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.recipients_count ? 'border-red-500' : 'border-gray-300'
+                }`}
                 value={formData.recipients_count}
                 onChange={(e) => handleChange('recipients_count', parseInt(e.target.value) || 0)}
                 min="1"
                 placeholder="Ex: 250"
               />
-              {errors.recipients_count && <span className="form-error">{errors.recipients_count}</span>}
+              {errors.recipients_count && (
+                <span className="mt-1 text-sm text-red-600">{errors.recipients_count}</span>
+              )}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Template</label>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Template
+              </label>
               <select
-                className="form-select"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={formData.template}
                 onChange={(e) => handleChange('template', e.target.value)}
               >
@@ -234,35 +279,63 @@ const CampaignModal = ({ campaign, onClose, onSave }) => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Contenu de l'email</label>
+          {/* Contenu de l'email */}
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Contenu de l'email
+            </label>
             <textarea
-              className="form-textarea"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={formData.content}
               onChange={(e) => handleChange('content', e.target.value)}
               placeholder="Rédigez le contenu de votre email ici..."
-              rows="8"
+              rows="6"
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Pièces jointes</label>
-            <div className="upload-area">
-              <div className="upload-placeholder">
-                <Upload size={24} />
-                <span>Glissez vos fichiers ici ou cliquez pour parcourir</span>
-                <small>Formats acceptés: PDF, JPG, PNG, MP3 (max 10MB)</small>
+          {/* Pièces jointes */}
+          <div className="mb-6">
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Pièces jointes
+            </label>
+            <div className="flex items-center justify-center w-full p-6 border-2 border-gray-300 border-dashed rounded-lg hover:bg-gray-50">
+              <div className="text-center">
+                <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-600">
+                  Glissez-déposez vos fichiers ici
+                </p>
+                <p className="text-xs text-gray-500">
+                  ou cliquez pour parcourir
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="campaign-modal-actions">
-            <button type="button" className="btn-cancel" onClick={onClose}>
-              Annuler
+          {/* Actions - Mobile responsive */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              <Eye className="w-4 h-4" />
+              Aperçu
             </button>
-            <button type="submit" className="btn-save">
-              {campaign ? "Mettre à jour" : "Créer la campagne"}
-            </button>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                {campaign ? "Mettre à jour" : "Créer la campagne"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

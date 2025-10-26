@@ -4,13 +4,20 @@ import authService from './utils/authService';
 // URL de ton backend Railway
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-// Configuration d'axios avec interceptors pour l'authentification
+// Configuration sécurisée d'axios
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 30s timeout
   headers: {
     'Content-Type': 'application/json',
-  }
+    'X-Requested-With': 'XMLHttpRequest' // Protection CSRF
+  },
+  maxContentLength: 10 * 1024 * 1024, // 10MB max content
+  maxBodyLength: 10 * 1024 * 1024, // 10MB max body
+  validateStatus: (status) => status >= 200 && status < 300,
+  withCredentials: false, // Sécurité : pas de cookies automatiques
+  decompress: true, // Décompression sécurisée
+  maxRedirects: 3, // Limite les redirections
 });
 
 // Interceptor pour ajouter automatiquement le token d'authentification
@@ -27,15 +34,65 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor pour gérer les erreurs d'authentification
+// Interceptor pour gérer les erreurs et la sécurité
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token invalide ou expiré, déconnecter l'utilisateur
-      authService.logout();
-      window.location.href = '/login';
+  (response) => {
+    // Vérification des headers de sécurité
+    if (response.headers && response.config.url) {
+      // Log des tentatives suspectes
+      if (response.status === 429) {
+        console.warn('Rate limit détecté sur:', response.config.url);
+      }
     }
+    return response;
+  },
+  (error) => {
+    // Gestion sécurisée des erreurs
+    if (error.response) {
+      const { status, config } = error.response;
+
+      switch (status) {
+        case 401:
+          // Token invalide ou expiré
+          authService.logout();
+          window.location.href = '/login';
+          break;
+
+        case 403:
+          // Accès interdit
+          console.warn('Accès interdit à:', config?.url);
+          break;
+
+        case 429:
+          // Rate limiting
+          console.warn('Rate limit atteint pour:', config?.url);
+          break;
+
+        case 413:
+          // Payload trop volumineux
+          console.error('Fichier trop volumineux');
+          break;
+
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          // Erreurs serveur
+          console.error('Erreur serveur:', status, 'pour:', config?.url);
+          break;
+
+        default:
+          // Autres erreurs
+          console.warn('Erreur HTTP:', status, 'pour:', config?.url);
+      }
+    } else if (error.request) {
+      // Erreur réseau
+      console.error('Erreur réseau - serveur inaccessible');
+    } else if (error.code === 'ECONNABORTED') {
+      // Timeout
+      console.error('Timeout de la requête vers:', error.config?.url);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -706,31 +763,31 @@ export const messagesApi = {
 export const authApi = {
   // Récupérer les paramètres email
   getEmailSettings: async () => {
-    const response = await api.get('/api/auth/email-settings');
+    const response = await api.get('/auth/email-settings');
     return response.data;
   },
 
   // Mettre à jour les paramètres email
   updateEmailSettings: async (emailSettings) => {
-    const response = await api.put('/api/auth/email-settings', emailSettings);
+    const response = await api.put('/auth/email-settings', emailSettings);
     return response.data;
   },
 
   // Récupérer le profil utilisateur
   getProfile: async () => {
-    const response = await api.get('/api/auth/me');
+    const response = await api.get('/auth/me');
     return response.data;
   },
 
   // Mettre à jour le profil utilisateur
   updateProfile: async (profileData) => {
-    const response = await api.put('/api/auth/profile', profileData);
+    const response = await api.put('/auth/profile', profileData);
     return response.data;
   },
 
   // Changer le mot de passe
   changePassword: async (passwordData) => {
-    const response = await api.put('/api/auth/change-password', passwordData);
+    const response = await api.put('/auth/change-password', passwordData);
     return response.data;
   }
 };

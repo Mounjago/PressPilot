@@ -277,7 +277,7 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
     try {
-      const response = await api.post('/api/auth/login', {
+      const response = await api.post('/auth/login', {
         email,
         password
       });
@@ -315,7 +315,7 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
-      const response = await api.post('/api/auth/register', userData);
+      const response = await api.post('/auth/register', userData);
 
       if (response.data.success) {
         const { token, user } = response.data;
@@ -350,7 +350,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Informer le serveur de la déconnexion
       if (state.token) {
-        await api.post('/api/auth/logout');
+        await api.post('/auth/logout');
       }
     } catch (error) {
       console.error('Erreur lors de la déconnexion côté serveur:', error);
@@ -364,7 +364,7 @@ export const AuthProvider = ({ children }) => {
   // Fonction de mise à jour du profil
   const updateProfile = async (profileData) => {
     try {
-      const response = await api.put('/api/auth/profile', profileData);
+      const response = await api.put('/auth/profile', profileData);
 
       if (response.data.success) {
         const updatedUser = response.data.user;
@@ -390,7 +390,7 @@ export const AuthProvider = ({ children }) => {
   // Fonction de rafraîchissement du token
   const refreshToken = async () => {
     try {
-      const response = await api.post('/api/auth/refresh-token');
+      const response = await api.post('/auth/refresh-token');
 
       if (response.data.success) {
         const { token, user } = response.data;

@@ -11,7 +11,7 @@ const FacebookLoginButton = ({ onSuccess, onError }) => {
     }
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/facebook`, {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/facebook`, {
         accessToken: response.accessToken,
         userID: response.userID,
         name: response.name,

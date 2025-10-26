@@ -46,8 +46,8 @@ const FacebookLoginButton = ({ onSuccess, onError }) => {
         }
       } catch (firstError) {
         // Si la première URL échoue, essayer avec le préfixe /api
-        console.log("Premier chemin échoué, essai avec /api/auth/facebook");
-        const alternativeUrl = `${config.apiUrl}/api/auth/facebook`;
+        console.log("Premier chemin échoué, essai avec /auth/facebook");
+        const alternativeUrl = `${config.apiUrl}/auth/facebook`;
         
         const res = await axios.post(alternativeUrl, {
           accessToken: response.accessToken,

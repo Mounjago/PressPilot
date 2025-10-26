@@ -3,7 +3,7 @@ import axios from 'axios';
 import config from '../config';
 
 // Définir l'URL de base pour les requêtes d'authentification
-const AUTH_URL = `${config.apiUrl}/api/auth`;
+const AUTH_URL = `${config.apiUrl}/auth`;
 
 // Service d'authentification
 const authService = {

@@ -3272,3 +3272,40 @@
     font-size: 9px;
   }
 }
+
+/* Styles pour le bouton de déconnexion dans la sidebar */
+.nav-logout {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+.logout-button {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: #ef4444;
+  transition: all 0.2s ease;
+  border-radius: 0.5rem;
+  text-align: left;
+}
+
+.logout-button:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.logout-button .nav-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.75rem;
+}
+
+.logout-button .nav-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}

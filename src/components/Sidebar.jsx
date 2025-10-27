@@ -1,9 +1,23 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import { X, BarChart3, Users, Mail, Phone, Settings, Calendar, TrendingUp } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { X, BarChart3, Users, Mail, Phone, Settings, Calendar, TrendingUp, LogOut } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 import "../styles/Dashboard.css";
 
 const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      navigate('/login');
+    }
+  };
+
   const menuItems = [
     { to: "/dashboard", label: "Tableau de bord", icon: BarChart3 },
     { to: "/artists", label: "Artistes", icon: Users },
@@ -51,6 +65,18 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
               </NavLink>
             );
           })}
+
+          {/* Bouton de déconnexion */}
+          <div className="nav-logout">
+            <button
+              onClick={handleLogout}
+              className="nav-item logout-button"
+              title="Se déconnecter"
+            >
+              <LogOut className="nav-icon" />
+              <span className="nav-label">Déconnexion</span>
+            </button>
+          </div>
         </nav>
       </aside>
   );

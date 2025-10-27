@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
 
   // Navigation items - STYLE PROFESSIONNEL SANS ICÔNES
   const navigationItems = [
@@ -42,17 +44,16 @@ const Navbar = () => {
     }
   ];
 
-  // User info (normalement récupéré du context/state)
-  const user = {
-    name: 'John Doe',
-    email: 'john@presspilot.com',
-    avatar: null
-  };
-
-  // Logout handler
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
+  // Logout handler avec le contexte d'authentification
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, on redirige vers login
+      navigate('/login');
+    }
   };
 
   // Navigation item component
@@ -72,6 +73,11 @@ const Navbar = () => {
       </Link>
     );
   };
+
+  // Ne pas afficher la navbar si l'utilisateur n'est pas connecté
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-200">
@@ -117,7 +123,7 @@ const Navbar = () => {
                 >
                   <span className="sr-only">Menu utilisateur</span>
                   <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    {user.name.charAt(0)}
+                    {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </div>
                 </button>
               </div>
@@ -194,11 +200,11 @@ const Navbar = () => {
               <div className="border-t border-gray-200 pt-4 pb-3">
                 <div className="flex items-center px-3">
                   <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                    {user.name.charAt(0)}
+                    {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </div>
                   <div className="ml-3">
-                    <div className="text-base font-medium text-gray-800">{user.name}</div>
-                    <div className="text-sm font-medium text-gray-500">{user.email}</div>
+                    <div className="text-base font-medium text-gray-800">{user?.name || 'Utilisateur'}</div>
+                    <div className="text-sm font-medium text-gray-500">{user?.email || ''}</div>
                   </div>
                 </div>
                 <div className="mt-3 space-y-1">

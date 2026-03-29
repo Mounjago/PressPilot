@@ -12,6 +12,7 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
   const [importResults, setImportResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [customFields, setCustomFields] = useState([]); // {id, field, value}
 
   // Champs disponibles pour le mapping
   const availableFields = [
@@ -146,22 +147,43 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
     return rows;
   };
 
+  const addCustomField = () => {
+    setCustomFields([...customFields, { id: Date.now(), field: '', value: '' }]);
+  };
+
+  const updateCustomField = (id, key, val) => {
+    setCustomFields(customFields.map(cf => cf.id === id ? { ...cf, [key]: val } : cf));
+  };
+
+  const removeCustomField = (id) => {
+    setCustomFields(customFields.filter(cf => cf.id !== id));
+  };
+
   const validateMapping = () => {
     const mappedFields = Object.values(columnMapping);
+    const customFieldKeys = customFields.filter(cf => cf.field && cf.value).map(cf => cf.field);
+    const allFields = [...mappedFields, ...customFieldKeys];
 
     // Email is always required
-    if (!mappedFields.includes('email')) {
+    if (!allFields.includes('email')) {
       setError('Champ obligatoire manquant: email');
       return false;
     }
 
     // Either fullName OR (firstName + lastName) is required
-    const hasFullName = mappedFields.includes('fullName');
-    const hasFirstName = mappedFields.includes('firstName');
-    const hasLastName = mappedFields.includes('lastName');
+    const hasFullName = allFields.includes('fullName');
+    const hasFirstName = allFields.includes('firstName');
+    const hasLastName = allFields.includes('lastName');
 
     if (!hasFullName && !hasFirstName && !hasLastName) {
       setError('Champ obligatoire manquant: Nom complet ou Prenom + Nom de famille');
+      return false;
+    }
+
+    // Validate custom fields have both field and value
+    const incompleteCustom = customFields.filter(cf => (cf.field && !cf.value) || (!cf.field && cf.value));
+    if (incompleteCustom.length > 0) {
+      setError('Champs manuels incomplets: remplissez le champ et la valeur');
       return false;
     }
 
@@ -206,6 +228,31 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
             contact[fieldPath] = value.split(';').map(item => item.trim()).filter(item => item);
           } else {
             contact[fieldPath] = value;
+          }
+        });
+
+        // Appliquer les champs manuels (valeur par defaut pour tous les contacts)
+        customFields.forEach(cf => {
+          if (!cf.field || !cf.value) return;
+          if (cf.field === 'fullName') {
+            const parts = cf.value.split(/\s+/);
+            if (parts.length >= 2) {
+              if (!contact.firstName) contact.firstName = parts[0];
+              if (!contact.lastName) contact.lastName = parts.slice(1).join(' ');
+            } else {
+              if (!contact.firstName) contact.firstName = cf.value;
+              if (!contact.lastName) contact.lastName = cf.value;
+            }
+          } else if (cf.field.includes('.')) {
+            const [parent, child] = cf.field.split('.');
+            if (!contact[parent]) contact[parent] = {};
+            if (!contact[parent][child]) contact[parent][child] = cf.value;
+          } else if (cf.field === 'specializations' || cf.field === 'tags') {
+            if (!contact[cf.field] || contact[cf.field].length === 0) {
+              contact[cf.field] = cf.value.split(';').map(item => item.trim()).filter(item => item);
+            }
+          } else {
+            if (!contact[cf.field]) contact[cf.field] = cf.value;
           }
         });
 
@@ -439,6 +486,108 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
                 </option>
               ))}
             </select>
+          </div>
+        ))}
+      </div>
+
+      {/* Champs manuels */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '10px'
+        }}>
+          <h4 style={{
+            margin: 0,
+            color: '#374151',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}>
+            + Champs manuels (valeur par defaut)
+          </h4>
+          <button
+            onClick={addCustomField}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#f0fdf4',
+              color: '#15803d',
+              border: '1px solid #bbf7d0',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}
+          >
+            + Ajouter un champ
+          </button>
+        </div>
+
+        {customFields.length > 0 && (
+          <p style={{ margin: '0 0 10px 0', color: '#6b7280', fontSize: '12px' }}>
+            Ces valeurs seront appliquees a tous les contacts importes (sauf si le CSV fournit deja la valeur).
+          </p>
+        )}
+
+        {customFields.map(cf => (
+          <div key={cf.id} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 12px',
+            backgroundColor: '#f0fdf4',
+            borderRadius: '8px',
+            border: '1px solid #bbf7d0',
+            marginBottom: '8px'
+          }}>
+            <select
+              value={cf.field}
+              onChange={(e) => updateCustomField(cf.id, 'field', e.target.value)}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">-- Choisir un champ --</option>
+              {availableFields.filter(f => f.key).map(field => (
+                <option key={field.key} value={field.key}>
+                  {field.label}
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: '14px', color: '#9ca3af' }}>=</div>
+            <input
+              type="text"
+              value={cf.value}
+              onChange={(e) => updateCustomField(cf.id, 'value', e.target.value)}
+              placeholder="Valeur par defaut..."
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px'
+              }}
+            />
+            <button
+              onClick={() => removeCustomField(cf.id)}
+              style={{
+                padding: '6px 10px',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                lineHeight: '1'
+              }}
+            >
+              x
+            </button>
           </div>
         ))}
       </div>

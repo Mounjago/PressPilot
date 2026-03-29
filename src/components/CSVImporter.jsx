@@ -16,17 +16,18 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
   // Champs disponibles pour le mapping
   const availableFields = [
     { key: '', label: '-- Ignorer cette colonne --' },
-    { key: 'firstName', label: 'Prénom *', required: true },
-    { key: 'lastName', label: 'Nom *', required: true },
+    { key: 'fullName', label: 'Nom complet *' },
+    { key: 'firstName', label: 'Prenom *' },
+    { key: 'lastName', label: 'Nom de famille *' },
     { key: 'email', label: 'Email *', required: true },
-    { key: 'phone', label: 'Téléphone' },
+    { key: 'phone', label: 'Telephone' },
     { key: 'jobTitle', label: 'Poste' },
-    { key: 'media.name', label: 'Nom du média' },
-    { key: 'media.type', label: 'Type de média (radio, magazine, web...)' },
-    { key: 'media.website', label: 'Site web du média' },
+    { key: 'media.name', label: 'Nom du media' },
+    { key: 'media.type', label: 'Type de media (radio, magazine, web...)' },
+    { key: 'media.website', label: 'Site web du media' },
     { key: 'location.city', label: 'Ville' },
-    { key: 'specializations', label: 'Spécialisations (séparées par ;)' },
-    { key: 'tags', label: 'Tags (séparés par ;)' },
+    { key: 'specializations', label: 'Specialisations (separees par ;)' },
+    { key: 'tags', label: 'Tags (separes par ;)' },
     { key: 'notes', label: 'Notes' }
   ];
 
@@ -67,10 +68,12 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
       headerRow.forEach((header, index) => {
         const lowerHeader = header.toLowerCase().trim();
 
-        // Mapping automatique basé sur les noms de colonnes courants
-        if (lowerHeader.includes('prénom') || lowerHeader.includes('prenom') || lowerHeader === 'firstname') {
+        // Mapping automatique base sur les noms de colonnes courants
+        if (lowerHeader.includes('prenom') || lowerHeader.includes('prénom') || lowerHeader === 'firstname' || lowerHeader === 'first_name') {
           autoMapping[index] = 'firstName';
-        } else if (lowerHeader.includes('nom') && !lowerHeader.includes('prénom') || lowerHeader === 'lastname') {
+        } else if (lowerHeader === 'nom' || lowerHeader === 'name' || lowerHeader === 'nom complet' || lowerHeader === 'fullname' || lowerHeader === 'full_name') {
+          autoMapping[index] = 'fullName';
+        } else if (lowerHeader === 'nom de famille' || lowerHeader === 'lastname' || lowerHeader === 'last_name') {
           autoMapping[index] = 'lastName';
         } else if (lowerHeader.includes('email') || lowerHeader.includes('e-mail')) {
           autoMapping[index] = 'email';
@@ -144,13 +147,21 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
   };
 
   const validateMapping = () => {
-    const requiredFields = ['firstName', 'lastName', 'email'];
     const mappedFields = Object.values(columnMapping);
 
-    const missingRequired = requiredFields.filter(field => !mappedFields.includes(field));
+    // Email is always required
+    if (!mappedFields.includes('email')) {
+      setError('Champ obligatoire manquant: email');
+      return false;
+    }
 
-    if (missingRequired.length > 0) {
-      setError(`Champs obligatoires manquants: ${missingRequired.join(', ')}`);
+    // Either fullName OR (firstName + lastName) is required
+    const hasFullName = mappedFields.includes('fullName');
+    const hasFirstName = mappedFields.includes('firstName');
+    const hasLastName = mappedFields.includes('lastName');
+
+    if (!hasFullName && !hasFirstName && !hasLastName) {
+      setError('Champ obligatoire manquant: Nom complet ou Prenom + Nom de famille');
       return false;
     }
 
@@ -164,7 +175,7 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
       setStep('importing');
       setLoading(true);
 
-      // Transformer les données selon le mapping
+      // Transformer les donnees selon le mapping
       const contacts = rawData.map(row => {
         const contact = {
           source: 'import'
@@ -176,27 +187,46 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
           const value = row[columnIndex].trim();
           if (!value) return;
 
-          // Gérer les champs imbriqués (ex: media.name)
-          if (fieldPath.includes('.')) {
+          // Gerer le champ "Nom complet" -> split en firstName + lastName
+          if (fieldPath === 'fullName') {
+            const parts = value.split(/\s+/);
+            if (parts.length >= 2) {
+              contact.firstName = parts[0];
+              contact.lastName = parts.slice(1).join(' ');
+            } else {
+              contact.firstName = value;
+              contact.lastName = value;
+            }
+          // Gerer les champs imbriques (ex: media.name)
+          } else if (fieldPath.includes('.')) {
             const [parent, child] = fieldPath.split('.');
             if (!contact[parent]) contact[parent] = {};
             contact[parent][child] = value;
           } else if (fieldPath === 'specializations' || fieldPath === 'tags') {
-            // Gérer les listes séparées par des points-virgules
             contact[fieldPath] = value.split(';').map(item => item.trim()).filter(item => item);
           } else {
             contact[fieldPath] = value;
           }
         });
 
-        return contact;
-      }).filter(contact => contact.email); // Ne garder que les contacts avec email
+        // Si pas de firstName, utiliser lastName comme fallback
+        if (!contact.firstName && contact.lastName) {
+          contact.firstName = contact.lastName;
+        }
+        if (!contact.lastName && contact.firstName) {
+          contact.lastName = contact.firstName;
+        }
 
-      // Envoyer à l'API
-      const response = await fetch('/api/contacts/import/csv', {
+        return contact;
+      }).filter(contact => contact.email);
+
+      // Envoyer a l'API avec le token JWT
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/contacts/import/json', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ contacts })
       });
@@ -331,7 +361,7 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
           fontSize: '13px',
           lineHeight: '1.4'
         }}>
-          Votre fichier CSV doit contenir au minimum les colonnes : <strong>Prénom</strong>, <strong>Nom</strong>, <strong>Email</strong>
+          Votre fichier CSV doit contenir au minimum : <strong>Nom</strong> (ou Prenom + Nom de famille) et <strong>Email</strong>
         </p>
         <div style={{
           fontSize: '12px',
@@ -342,8 +372,8 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
           borderRadius: '4px',
           border: '1px solid #bae6fd'
         }}>
-          Prénom,Nom,Email,Téléphone,Poste,Média,Ville<br />
-          Marie,Dubois,marie@example.com,01234567,Journaliste,Le Figaro,Paris
+          nom,email,media,telephone,poste,ville<br />
+          Marie Dubois,marie@example.com,Le Figaro,01234567,Journaliste,Paris
         </div>
       </div>
     </div>
@@ -571,9 +601,31 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
           margin: 0,
           color: '#6b7280'
         }}>
-          {importResults?.imported || 0} contacts ont été importés avec succès
+          {importResults?.imported || 0} contacts ont ete importes avec succes
         </p>
       </div>
+
+      {/* Details duplicates/errors */}
+      {importResults && (importResults.duplicates > 0 || importResults.errors > 0) && (
+        <div style={{
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '20px'
+        }}>
+          {importResults.duplicates > 0 && (
+            <p style={{ margin: '0 0 5px 0', color: '#92400e', fontSize: '14px' }}>
+              ⚠️ {importResults.duplicates} contact(s) deja existant(s) (ignores)
+            </p>
+          )}
+          {importResults.errors > 0 && (
+            <p style={{ margin: 0, color: '#dc2626', fontSize: '14px' }}>
+              ❌ {importResults.errors} erreur(s) lors de l'import
+            </p>
+          )}
+        </div>
+      )}
 
       <div style={{
         display: 'flex',

@@ -371,6 +371,6 @@ Pour toute question ou problème, consulter :
 
 ---
 
-**Version :** 1.0
-**Dernière mise à jour :** Octobre 2024
+**Version :** 1.0.1
+**Derniere mise a jour :** Mars 2026
 **Auteur :** PressPilot Team

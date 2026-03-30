@@ -60,3 +60,4 @@ frontend/
 # Shell scripts (deployment helpers)
 check-deployment.sh
 fix-cache-issue.sh
+.github/

@@ -268,7 +268,7 @@ const ContactsImporter = ({ onClose, onImportComplete }) => {
       }).filter(contact => contact.email);
 
       // Envoyer a l'API avec le token JWT
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch('/api/contacts/import/json', {
         method: 'POST',
         headers: {

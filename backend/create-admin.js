@@ -1,69 +1,86 @@
 /**
- * CRÉATION D'UTILISATEUR ADMIN
- * Script pour créer un compte administrateur
+ * CREATION D'UTILISATEUR ADMIN
+ * Script pour creer un compte administrateur avec mot de passe securise
  */
 
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const User = require('./models/User');
 require('dotenv').config();
 
 async function createAdmin() {
   try {
-    // Connexion à MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/presspilot_dev');
-    console.log('📊 Connexion à MongoDB réussie');
+    // Validate required env vars
+    if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes('your_')) {
+      console.error('FATAL: MONGODB_URI must be configured in .env');
+      process.exit(1);
+    }
 
-    // Vérifier si l'admin existe déjà
-    const existingAdmin = await User.findByEmail('admin@presspilot.fr');
+    // Connexion a MongoDB
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Connexion a MongoDB reussie');
+
+    // Generate a secure random password that meets validation rules
+    // Must have: uppercase, lowercase, digit, special char, min 12 chars
+    const randomPart = crypto.randomBytes(12).toString('hex').slice(0, 16);
+    const generatedPassword = 'Pp!' + randomPart + 'Z9';
+
+    // Parametres configurables via env ou arguments
+    const email = process.env.ADMIN_EMAIL || 'admin@presspilot.fr';
+    const name = process.env.ADMIN_NAME || 'Super Admin PressPilot';
+    const role = process.env.ADMIN_ROLE || 'super_admin';
+    const interfaces = role === 'super_admin' || role === 'admin' ? ['press', 'rp'] : ['press'];
+
+    // Verifier si l'admin existe deja
+    const existingAdmin = await User.findByEmail(email);
 
     if (existingAdmin) {
-      console.log('⚠️  L\'utilisateur admin@presspilot.fr existe déjà');
+      console.log('L\'utilisateur ' + email + ' existe deja');
 
-      // Mettre à jour le mot de passe
-      existingAdmin.password = 'admin123';
-      existingAdmin.role = 'admin';
+      // Mettre a jour le mot de passe et le role
+      existingAdmin.password = generatedPassword;
+      existingAdmin.role = role;
+      existingAdmin.interfaces = interfaces;
       existingAdmin.emailVerified = true;
+      existingAdmin.isActive = true;
       await existingAdmin.save();
 
-      console.log('✅ Mot de passe admin mis à jour');
+      console.log('Utilisateur mis a jour avec role: ' + role);
     } else {
-      // Créer le nouvel admin
+      // Creer le nouvel admin
       const admin = new User({
-        name: 'Administrateur PressPilot',
-        email: 'admin@presspilot.fr',
-        password: 'admin123',
+        name: name,
+        email: email,
+        password: generatedPassword,
         company: 'PressPilot',
-        role: 'admin',
+        role: role,
+        interfaces: interfaces,
+        organizationId: null,
         emailVerified: true,
         isActive: true
       });
 
       await admin.save();
-      console.log('✅ Utilisateur admin créé avec succès');
+      console.log('Utilisateur ' + role + ' cree avec succes');
     }
 
-    // Afficher les détails
-    const adminUser = await User.findByEmail('admin@presspilot.fr');
-    console.log('\n👤 Détails de l\'admin :');
-    console.log('   Email:', adminUser.email);
-    console.log('   Nom:', adminUser.name);
-    console.log('   Rôle:', adminUser.role);
-    console.log('   Actif:', adminUser.isActive);
-    console.log('   Vérifié:', adminUser.emailVerified);
-
-    console.log('\n🔑 Vous pouvez maintenant vous connecter avec :');
-    console.log('   Email: admin@presspilot.fr');
-    console.log('   Mot de passe: admin123');
+    // Afficher les details
+    console.log('\nDetails du compte :');
+    console.log('   Email: ' + email);
+    console.log('   Role: ' + role);
+    console.log('   Interfaces: ' + interfaces.join(', '));
+    console.log('   Mot de passe genere: ' + generatedPassword);
+    console.log('\n   IMPORTANT: Notez ce mot de passe maintenant, il ne sera plus affiche.');
+    console.log('   Changez-le immediatement apres votre premiere connexion.');
 
     await mongoose.disconnect();
-    console.log('\n✅ Script terminé');
+    console.log('\nScript termine');
 
   } catch (error) {
-    console.error('❌ Erreur:', error.message);
-    console.error(error);
+    console.error('Erreur:', error.message);
     process.exit(1);
   }
 }
 
-// Exécuter le script
+// Executer le script
 createAdmin();

@@ -67,9 +67,14 @@ const artistsService = {
 
       return response.data;
     } catch (error) {
-      console.error('Erreur lors de la création de l\'artiste:', error);
+      console.error('🚨 ERREUR API - Création artiste échouée:', error);
+      console.error('📊 Status:', error.response?.status);
+      console.error('📋 Données:', error.response?.data);
 
-      // Fallback vers localStorage
+      // ⚠️ FALLBACK DÉSACTIVÉ - Forcer la réparation de l'authentification
+      throw new Error(`Impossible de créer l'artiste: ${error.response?.data?.error || error.message}`);
+
+      /* FALLBACK TEMPORAIREMENT DÉSACTIVÉ
       const newArtist = {
         ...artistData,
         id: Date.now().toString(),
@@ -84,6 +89,7 @@ const artistsService = {
 
       console.log('💾 Artiste sauvegardé localement');
       return newArtist;
+      */
     }
   },
 

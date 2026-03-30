@@ -1,378 +1,519 @@
 /**
- * PRESSPILOT BACKEND SERVER - Serveur principal avec intégration Ringover
- * Serveur Express.js pour l'API PressPilot avec gestion des appels
+ * PRESSPILOT BACKEND SERVER
+ * Express API server with comprehensive security middlewares
+ *
+ * Security features:
+ * - Helmet (HTTP security headers + CSP)
+ * - CORS with whitelist
+ * - Rate limiting (global + per-route)
+ * - HPP (HTTP Parameter Pollution protection)
+ * - Compression
+ * - Request size limits
+ * - Structured logging (Winston)
+ * - Health check endpoint
+ * - Graceful shutdown
  */
 
+'use strict';
+
+// ============================================================
+// 1. ENVIRONMENT CONFIGURATION
+// ============================================================
+const dotenv = require('dotenv');
+dotenv.config();
+
+// Validate critical environment variables at startup
+const REQUIRED_ENV = ['MONGODB_URI', 'JWT_SECRET'];
+const missing = REQUIRED_ENV.filter(key => !process.env[key]);
+if (missing.length > 0) {
+  // Use process.stderr.write for pre-boot FATAL errors (Winston not yet loaded)
+  process.stderr.write(`FATAL: Missing required environment variables: ${missing.join(', ')}\n`);
+  process.stderr.write('Copy .env.example to .env and fill in your values.\n');
+  process.exit(1);
+}
+
+if (process.env.JWT_SECRET.length < 32) {
+  process.stderr.write('FATAL: JWT_SECRET must be at least 32 characters.\n');
+  process.exit(1);
+}
+
+// ============================================================
+// 2. DEPENDENCIES
+// ============================================================
 const express = require('express');
-const cors = require('cors');
 const helmet = require('helmet');
+const cors = require('cors');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
 const morgan = require('morgan');
-require('dotenv').config();
+const path = require('path');
+const { connectDB, setupDatabaseEvents, isConnected } = require('./config/database');
 
-// Configuration base de données
-const { connectDB, setupDatabaseEvents, getDatabaseStats } = require('./config/database');
+// ============================================================
+// 3. LOGGING (Winston)
+// ============================================================
+const winston = require('winston');
 
-// Import des modèles pour assurer leur enregistrement dans Mongoose
-require('./models/User');
-require('./models/Artist');
-require('./models/Project');
-require('./models/Campaign');
-require('./models/Contact');
-require('./models/EmailTracking');
-require('./models/IMAPConfiguration');
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'presspilot-api' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(({ timestamp, level, message, ...meta }) => {
+          const metaStr = Object.keys(meta).length > 1 ? ` ${JSON.stringify(meta)}` : '';
+          return `${timestamp} [${level}]: ${message}${metaStr}`;
+        })
+      )
+    })
+  ]
+});
 
-// Routes
-const authRoutes = require('./routes/auth');
-const callsRoutes = require('./routes/calls');
-// const analyticsRoutes = require('./routes/analytics');
-const campaignsRoutes = require('./routes/campaigns');
-const emailTrackingRoutes = require('./routes/email-tracking');
-const incomingEmailsRoutes = require('./routes/incoming-emails');
-const contactsRoutes = require('./routes/contacts');
-const artistsRoutes = require('./routes/artists');
-const projectsRoutes = require('./routes/projects');
-const imapRoutes = require('./routes/imap');
-const queueRoutes = require('./routes/queue');
+// Add file transport in production
+if (process.env.NODE_ENV === 'production') {
+  logger.add(new winston.transports.File({
+    filename: process.env.LOG_FILE || './logs/error.log',
+    level: 'error',
+    maxsize: 5 * 1024 * 1024, // 5MB
+    maxFiles: 5
+  }));
+  logger.add(new winston.transports.File({
+    filename: process.env.LOG_FILE || './logs/combined.log',
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 10
+  }));
+}
 
-// Configuration du serveur
+// ============================================================
+// 4. EXPRESS APP INITIALIZATION
+// ============================================================
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT, 10) || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-/**
- * MIDDLEWARES DE SÉCURITÉ
- */
+// Trust proxy (for Railway, Heroku, etc. behind reverse proxy)
+if (NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
-// Protection des headers HTTP
+// ============================================================
+// 5. SECURITY MIDDLEWARES
+// ============================================================
+
+// 5.1 Helmet - HTTP Security Headers + CSP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "https://public-api.ringover.com"]
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: NODE_ENV === 'production' ? [] : null
     }
+  },
+  crossOriginEmbedderPolicy: false, // Allow loading cross-origin resources
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xContentTypeOptions: true, // nosniff
+  xFrameOptions: { action: 'deny' },
+  xXssProtection: true
+}));
+
+// 5.2 CORS - Cross-Origin Resource Sharing with whitelist
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:5173',  // Vite dev server
+  'http://localhost:4173'   // Vite preview
+].filter(Boolean);
+
+// In production, only allow explicitly configured origins
+if (NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+  logger.warn('FRONTEND_URL not set in production! CORS will be restrictive.');
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+  credentials: true,
+  maxAge: 86400 // 24 hours preflight cache
+}));
+
+// 5.3 Rate Limiting - Global
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: NODE_ENV === 'production' ? 100 : 1000, // Stricter in production
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  skip: (req) => req.path === '/health' // Don't rate-limit health checks
+});
+app.use(globalLimiter);
+
+// 5.4 Auth-specific rate limiting (stricter)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: NODE_ENV === 'production' ? 10 : 100, // 10 attempts per 15 min in prod
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many authentication attempts. Please try again in 15 minutes.',
+    code: 'AUTH_RATE_LIMIT_EXCEEDED'
+  }
+});
+
+// 5.5 HPP - HTTP Parameter Pollution protection
+app.use(hpp());
+
+// ============================================================
+// 6. PARSING & COMPRESSION MIDDLEWARES
+// ============================================================
+
+// JSON body parser with size limit
+app.use(express.json({
+  limit: '1mb',
+  strict: true
+}));
+
+// URL-encoded body parser with size limit
+app.use(express.urlencoded({
+  extended: true,
+  limit: '1mb'
+}));
+
+// 6.3 Sanitization - Anti-NoSQL injection & XSS
+const sanitize = require('./middleware/sanitize');
+app.use(sanitize);
+
+// Compression (gzip)
+app.use(compression({
+  level: 6,
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
   }
 }));
 
-// Compression des réponses
-app.use(compression());
+// ============================================================
+// 7. REQUEST LOGGING
+// ============================================================
 
-// CORS configuration - Optimisé pour production Railway
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Autoriser les domaines Railway et localhost
-    const allowedOrigins = [
-      'https://presspilot.up.railway.app',
-      'https://frontend-presspilot-production.up.railway.app',
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:4173'
-    ];
-
-    // Autoriser les requêtes sans origin (Postman, mobile apps, etc.)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('❌ CORS blocked origin:', origin);
-      callback(null, true); // Temporairement permissif pour debug
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  optionsSuccessStatus: 200
+// Morgan HTTP request logging -> Winston
+const morganStream = {
+  write: (message) => logger.http(message.trim())
 };
 
-app.use(cors(corsOptions));
+if (NODE_ENV === 'production') {
+  app.use(morgan('combined', { stream: morganStream }));
+} else {
+  app.use(morgan('dev'));
+}
 
-// Rate limiting global
-const globalLimiter = rateLimit({
+// ============================================================
+// 8. SECURITY HEADERS (additional)
+// ============================================================
+app.use((req, res, next) => {
+  // Remove X-Powered-By (already done by helmet, but double-check)
+  res.removeHeader('X-Powered-By');
+
+  // Add additional security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Download-Options', 'noopen');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+
+  next();
+});
+
+// ============================================================
+// 9. HEALTH CHECK ENDPOINT
+// ============================================================
+app.get('/health', (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.round(process.uptime()),
+    environment: NODE_ENV,
+    database: isConnected() ? 'connected' : 'disconnected',
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      unit: 'MB'
+    }
+  };
+
+  const statusCode = isConnected() ? 200 : 503;
+  res.status(statusCode).json(health);
+});
+
+// ============================================================
+// 10. API ROUTES
+// ============================================================
+
+// Import route modules
+const authRoutes = require('./routes/auth');
+const contactsRoutes = require('./routes/contacts');
+const campaignsRoutes = require('./routes/campaigns');
+const projectsRoutes = require('./routes/projects');
+const artistsRoutes = require('./routes/artists');
+const analyticsRoutes = require('./routes/analytics');
+const messagesRoutes = require('./routes/messages');
+const imapRoutes = require('./routes/imap');
+const uploadsRoutes = require('./routes/uploads');
+const aiRoutes = require('./routes/ai');
+const pressReleasesRoutes = require('./routes/pressReleases');
+const eventsRoutes = require('./routes/events');
+const mediaKitsRoutes = require('./routes/mediaKits');
+const adminRoutes = require('./routes/admin');
+
+// 10.1 Upload-specific rate limiting (stricter)
+const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limite de 1000 requêtes par IP
-  message: {
-    error: 'Trop de requêtes, veuillez réessayer plus tard'
-  },
+  max: NODE_ENV === 'production' ? 30 : 200, // 30 uploads per 15 min in prod
   standardHeaders: true,
   legacyHeaders: false,
-});
-
-app.use(globalLimiter);
-
-// Parsing JSON et URL-encoded
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Logging des requêtes
-if (NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-/**
- * ROUTES PRINCIPALES
- */
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: NODE_ENV,
-    version: process.env.npm_package_version || '1.0.0'
-  });
-});
-
-// Route de test pour Ringover
-app.get('/api/test-ringover', async (req, res) => {
-  try {
-    const ringoverApiKey = process.env.RINGOVER_API_KEY;
-
-    if (!ringoverApiKey) {
-      return res.status(500).json({
-        success: false,
-        message: 'Clé API Ringover non configurée'
-      });
-    }
-
-    // Test de connexion à l'API Ringover
-    const response = await fetch('https://public-api.ringover.com/v2/users/me', {
-      headers: {
-        'Authorization': `Bearer ${ringoverApiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      const userData = await response.json();
-      res.json({
-        success: true,
-        message: 'Connexion Ringover réussie',
-        user: {
-          id: userData.id,
-          name: userData.name,
-          email: userData.email
-        }
-      });
-    } else {
-      res.status(response.status).json({
-        success: false,
-        message: 'Erreur de connexion Ringover',
-        status: response.status
-      });
-    }
-
-  } catch (error) {
-    console.error('Erreur test Ringover:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors du test Ringover'
-    });
+  message: {
+    success: false,
+    message: 'Too many upload requests. Please try again later.',
+    code: 'UPLOAD_RATE_LIMIT_EXCEEDED'
   }
 });
 
-// Routes API
-app.use('/api/auth', authRoutes);
-app.use('/api/calls', callsRoutes);
-// app.use('/api/analytics', analyticsRoutes);
-app.use('/api/campaigns', campaignsRoutes);
-app.use('/api/email', emailTrackingRoutes);
-app.use('/api/incoming', incomingEmailsRoutes);
+// Auth routes (with stricter rate limiting)
+app.use('/auth', authLimiter, authRoutes);
+
+// API routes (protected by auth middleware in each route file)
 app.use('/api/contacts', contactsRoutes);
-app.use('/api/artists', artistsRoutes);
+app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/artists', artistsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/messages', messagesRoutes);
 app.use('/api/imap', imapRoutes);
-app.use('/api/queue', queueRoutes);
+app.use('/api/uploads', uploadLimiter, uploadsRoutes);
+app.use('/api/ai', aiRoutes);
 
-// Route de statistiques de la base de données (développement)
-if (NODE_ENV === 'development') {
-  app.get('/api/db-stats', async (req, res) => {
-    try {
-      const stats = await getDatabaseStats();
-      res.json({
-        success: true,
-        stats
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des statistiques'
-      });
-    }
-  });
-}
+// BandStream RP routes (interface-protected in route files)
+app.use('/api/press-releases', pressReleasesRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/media-kits', mediaKitsRoutes);
 
-// Route pour les fichiers statiques (si nécessaire)
-if (NODE_ENV === 'production') {
-  app.use(express.static('../dist'));
+// Admin routes (admin/super_admin only)
+app.use('/api/admin', adminRoutes);
 
-  // Catch-all pour React Router
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-  });
-}
+// Static file serving for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-/**
- * GESTION DES ERREURS
- */
+// --- QUEUE ROUTES (Sprint 2 - Bull/Redis integration) ---
+const { auth: authMiddleware } = require('./middleware/auth');
 
-// Route 404
-app.use('*', (req, res) => {
+app.get('/api/queue/status', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Queue service - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.get('/api/queue/jobs/:type', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Queue jobs - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.get('/api/queue/repeated', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Repeated jobs - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.get('/api/queue/job/:jobId', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Job details - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.post('/api/queue/job/:jobId/retry', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Retry job - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.delete('/api/queue/job/:jobId', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Delete job - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.post('/api/queue/clean', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Clean queues - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.post('/api/queue/pause', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Pause queues - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+app.post('/api/queue/resume', authMiddleware, (req, res) => {
+  res.status(501).json({ success: false, message: 'Resume queues - Sprint 2 implementation', code: 'NOT_IMPLEMENTED' });
+});
+
+// ============================================================
+// 11. 404 HANDLER
+// ============================================================
+app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route non trouvée',
-    path: req.originalUrl
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+    code: 'NOT_FOUND'
   });
 });
 
-// Gestionnaire d'erreurs global
-app.use((error, req, res, next) => {
-  console.error('Erreur serveur:', error);
+// ============================================================
+// 12. GLOBAL ERROR HANDLER
+// ============================================================
+app.use((err, req, res, _next) => {
+  // Log the error
+  logger.error('Unhandled error', {
+    error: err.message,
+    stack: NODE_ENV === 'development' ? err.stack : undefined,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip
+  });
 
-  // Erreur de validation
-  if (error.name === 'ValidationError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Données invalides',
-      errors: Object.values(error.errors).map(err => err.message)
-    });
-  }
-
-  // Erreur CORS
-  if (error.message === 'Non autorisé par CORS') {
+  // CORS error
+  if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       success: false,
-      message: 'Origine non autorisée'
+      message: 'Cross-origin request blocked',
+      code: 'CORS_ERROR'
     });
   }
 
-  // Erreur de parsing JSON
-  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(e => e.message);
     return res.status(400).json({
       success: false,
-      message: 'Format JSON invalide'
+      message: 'Validation error',
+      errors: messages,
+      code: 'VALIDATION_ERROR'
     });
   }
 
-  // Erreur générique
-  res.status(error.status || 500).json({
+  // Mongoose duplicate key error
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return res.status(409).json({
+      success: false,
+      message: `Duplicate value for field: ${field}`,
+      code: 'DUPLICATE_KEY'
+    });
+  }
+
+  // JSON parse error
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid JSON in request body',
+      code: 'INVALID_JSON'
+    });
+  }
+
+  // Payload too large
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      message: 'Request body too large',
+      code: 'PAYLOAD_TOO_LARGE'
+    });
+  }
+
+  // Default error
+  res.status(err.status || 500).json({
     success: false,
-    message: NODE_ENV === 'development' ? error.message : 'Erreur interne du serveur',
-    ...(NODE_ENV === 'development' && { stack: error.stack })
+    message: NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message,
+    code: 'INTERNAL_ERROR'
   });
 });
 
-/**
- * GESTION DES SIGNAUX SYSTÈME
- */
-
-const gracefulShutdown = (signal) => {
-  console.log(`\n📡 Signal ${signal} reçu, arrêt gracieux du serveur...`);
-
-  server.close(() => {
-    console.log('✅ Serveur fermé proprement');
-    process.exit(0);
-  });
-
-  // Force l'arrêt après 10 secondes
-  setTimeout(() => {
-    console.log('⚠️ Arrêt forcé du serveur');
-    process.exit(1);
-  }, 10000);
-};
-
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Gestion des erreurs non capturées
-process.on('uncaughtException', (error) => {
-  console.error('❌ Exception non capturée:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promesse rejetée non gérée:', reason);
-  console.error('Promise:', promise);
-  process.exit(1);
-});
-
-/**
- * INITIALISATION ET DÉMARRAGE DU SERVEUR
- */
-
+// ============================================================
+// 13. SERVER STARTUP
+// ============================================================
 const startServer = async () => {
-  let dbConnected = false;
-
   try {
-    // Tentative de connexion à la base de données
-    console.log('🔄 Tentative de connexion à MongoDB...');
+    // Connect to MongoDB
     await connectDB();
     setupDatabaseEvents();
-    dbConnected = true;
-    console.log('✅ MongoDB connecté avec succès');
-  } catch (dbError) {
-    console.warn('⚠️ Impossible de se connecter à MongoDB:', dbError.message);
-    console.warn('🔄 Le serveur va démarrer sans base de données (mode dégradé)');
-  }
 
-  try {
-    // Vérification des variables d'environnement requises (seulement JWT_SECRET)
-    if (!process.env.JWT_SECRET) {
-      // Générer un JWT temporaire pour Railway si manquant
-      process.env.JWT_SECRET = 'temporary-jwt-secret-' + Math.random().toString(36);
-      console.warn('⚠️ JWT_SECRET manquant, utilisation d\'une clé temporaire');
-    }
+    logger.info('MongoDB connected successfully');
 
-    // Démarrer le serveur (toujours, même sans DB)
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`
-🚀 PressPilot Backend démarré
-📍 Port: ${PORT}
-🌍 Environnement: ${NODE_ENV}
-🔐 JWT: ${process.env.JWT_SECRET ? '✅ Configuré' : '❌ Non configuré'}
-📞 Ringover: ${process.env.RINGOVER_API_KEY ? '✅ Configuré' : '❌ Non configuré'}
-🗄️  MongoDB: ${dbConnected ? '✅ Connecté' : '⚠️ Non disponible (mode dégradé)'}
-⏰ ${new Date().toLocaleString('fr-FR')}
-      `);
-
-      if (NODE_ENV === 'development') {
-        console.log(`
-📋 Endpoints disponibles:
-• Health: http://localhost:${PORT}/health
-• Auth Register: http://localhost:${PORT}/api/auth/register
-• Auth Login: http://localhost:${PORT}/api/auth/login
-• Auth Profile: http://localhost:${PORT}/api/auth/me
-• Test Ringover: http://localhost:${PORT}/api/test-ringover
-• Appels: http://localhost:${PORT}/api/calls
-• DB Stats: http://localhost:${PORT}/api/db-stats
-        `);
-      }
+    // Start Express server
+    const server = app.listen(PORT, () => {
+      logger.info(`PressPilot API server running on port ${PORT} [${NODE_ENV}]`);
+      logger.info(`Health check: http://localhost:${PORT}/health`);
     });
 
-    return server;
-  } catch (error) {
-    console.error('❌ Erreur critique lors du démarrage du serveur:', error);
+    // Graceful shutdown
+    const gracefulShutdown = (signal) => {
+      logger.info(`${signal} received. Starting graceful shutdown...`);
 
-    // Dernière tentative avec un serveur minimal
-    try {
-      const server = app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🆘 Serveur minimal démarré sur le port ${PORT}`);
+      server.close(() => {
+        logger.info('HTTP server closed');
+
+        const mongoose = require('mongoose');
+        mongoose.connection.close(false).then(() => {
+          logger.info('MongoDB connection closed');
+          process.exit(0);
+        }).catch((err) => {
+          logger.error('Error closing MongoDB connection', { error: err.message });
+          process.exit(1);
+        });
       });
-      return server;
-    } catch (finalError) {
-      console.error('❌ Impossible de démarrer le serveur:', finalError);
-      process.exit(1);
-    }
+
+      // Force shutdown after 10 seconds
+      setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+    // Handle unhandled rejections
+    process.on('unhandledRejection', (reason) => {
+      logger.error('Unhandled Rejection', { reason: reason?.message || reason });
+    });
+
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    });
+
+  } catch (error) {
+    logger.error('Failed to start server', { error: error.message });
+    process.exit(1);
   }
 };
 
-// Démarrer le serveur
 startServer();
 
-module.exports = app;
+module.exports = app; // For testing with supertest

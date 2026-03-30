@@ -1,70 +1,62 @@
-const express = require('express');
-const Artist = require('../models/Artist');
+const router = require('express').Router();
+const { body, param, query } = require('express-validator');
 const { auth } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const artistsController = require('../controllers/artistsController');
 
-const router = express.Router();
+// CRUD routes
+router.get('/',
+  auth,
+  [
+    query('page').optional().isInt({min:1}).withMessage('Page doit être un entier positif'),
+    query('limit').optional().isInt({min:1, max:100}).withMessage('Limite doit être entre 1 et 100')
+  ],
+  validate,
+  artistsController.getAll
+);
 
-// GET /api/artists - Liste des artistes
-router.get('/', auth, async (req, res) => {
-  try {
-    const artists = await Artist.find().sort({ createdAt: -1 });
+router.post('/',
+  auth,
+  [
+    body('name').notEmpty().withMessage('Nom artiste requis').trim().escape(),
+    body('genre').optional().trim().escape(),
+    body('label').optional().trim().escape(),
+    body('bio').optional().trim(),
+    body('socialLinks.spotify').optional().isURL().withMessage('Lien Spotify invalide'),
+    body('socialLinks.instagram').optional().isURL().withMessage('Lien Instagram invalide')
+  ],
+  validate,
+  artistsController.create
+);
 
-    res.json({
-      success: true,
-      data: artists
-    });
-  } catch (error) {
-    console.error('Erreur récupération artistes:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur'
-    });
-  }
-});
+router.get('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID artiste invalide')
+  ],
+  validate,
+  artistsController.getById
+);
 
-// GET /api/artists/:id - Récupérer un artiste spécifique
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const artist = await Artist.findById(req.params.id);
+router.put('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID artiste invalide'),
+    body('name').optional().trim().escape(),
+    body('genre').optional().trim().escape(),
+    body('label').optional().trim().escape()
+  ],
+  validate,
+  artistsController.update
+);
 
-    if (!artist) {
-      return res.status(404).json({
-        success: false,
-        message: 'Artiste non trouvé'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: artist
-    });
-  } catch (error) {
-    console.error('Erreur récupération artiste:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur'
-    });
-  }
-});
-
-// POST /api/artists - Créer un nouvel artiste
-router.post('/', auth, async (req, res) => {
-  try {
-    const artist = new Artist(req.body);
-    await artist.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Artiste créé avec succès',
-      data: artist
-    });
-  } catch (error) {
-    console.error('Erreur création artiste:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la création de l\'artiste'
-    });
-  }
-});
+router.delete('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID artiste invalide')
+  ],
+  validate,
+  artistsController.delete
+);
 
 module.exports = router;

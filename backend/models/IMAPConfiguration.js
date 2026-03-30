@@ -24,6 +24,7 @@ const imapConfigurationSchema = new mongoose.Schema({
     required: [true, 'L\'email est obligatoire'],
     lowercase: true,
     trim: true,
+    index: true,
     match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Veuillez entrer un email valide']
   },
   provider: {
@@ -193,8 +194,7 @@ const imapConfigurationSchema = new mongoose.Schema({
 });
 
 // Index pour les performances
-imapConfigurationSchema.index({ userId: 1 });
-imapConfigurationSchema.index({ email: 1 });
+// Note: userId and email already have index: true on the schema field
 imapConfigurationSchema.index({ status: 1 });
 imapConfigurationSchema.index({ 'pollingConfig.enabled': 1 });
 imapConfigurationSchema.index({ createdAt: -1 });
@@ -228,14 +228,21 @@ imapConfigurationSchema.pre('save', async function(next) {
   if (!this.isModified('imapConfig.passwordEncrypted')) return next();
 
   try {
-    // Utiliser une clé de chiffrement depuis les variables d'environnement
-    const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
-    const cipher = crypto.createCipher('aes-256-cbc', encryptionKey);
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey || encryptionKey.length < 32) {
+      return next(new Error('ENCRYPTION_KEY must be defined in environment variables (min 32 chars)'));
+    }
+
+    // Use createCipheriv (secure) instead of deprecated createCipher
+    const key = crypto.scryptSync(encryptionKey, 'presspilot-salt', 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 
     let encrypted = cipher.update(this.imapConfig.passwordEncrypted, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
-    this.imapConfig.passwordEncrypted = encrypted;
+    // Store IV prepended to encrypted data (IV is not secret)
+    this.imapConfig.passwordEncrypted = iv.toString('hex') + ':' + encrypted;
     next();
   } catch (error) {
     next(error);
@@ -245,15 +252,28 @@ imapConfigurationSchema.pre('save', async function(next) {
 // Méthode pour déchiffrer le mot de passe
 imapConfigurationSchema.methods.getDecryptedPassword = function() {
   try {
-    const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
-    const decipher = crypto.createDecipher('aes-256-cbc', encryptionKey);
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey || encryptionKey.length < 32) {
+      throw new Error('ENCRYPTION_KEY must be defined in environment variables (min 32 chars)');
+    }
 
-    let decrypted = decipher.update(this.imapConfig.passwordEncrypted, 'hex', 'utf8');
+    const key = crypto.scryptSync(encryptionKey, 'presspilot-salt', 32);
+    const parts = this.imapConfig.passwordEncrypted.split(':');
+
+    if (parts.length !== 2) {
+      throw new Error('Invalid encrypted password format');
+    }
+
+    const iv = Buffer.from(parts[0], 'hex');
+    const encryptedData = parts[1];
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+
+    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
 
     return decrypted;
   } catch (error) {
-    throw new Error('Erreur lors du déchiffrement du mot de passe');
+    throw new Error('Erreur lors du dechiffrement du mot de passe: ' + error.message);
   }
 };
 
@@ -268,7 +288,7 @@ imapConfigurationSchema.methods.getIMAPConnectionConfig = function() {
       pass: this.getDecryptedPassword()
     },
     tls: {
-      rejectUnauthorized: false // Pour les certificats auto-signés
+      rejectUnauthorized: process.env.NODE_ENV === 'production' // Enforce in production, allow self-signed in dev
     }
   };
 };

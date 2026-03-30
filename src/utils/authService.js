@@ -11,9 +11,11 @@ const authService = {
   register: async (userData) => {
     try {
       const response = await axios.post(`${AUTH_URL}/register`, userData);
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('authUser', JSON.stringify(response.data.user));
+      // Backend returns { success, data: { token, user } }
+      const payload = response.data.data || response.data;
+      if (payload.token) {
+        localStorage.setItem('authToken', payload.token);
+        localStorage.setItem('authUser', JSON.stringify(payload.user));
         // Nettoyer les anciens tokens
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -28,9 +30,11 @@ const authService = {
   login: async (credentials) => {
     try {
       const response = await axios.post(`${AUTH_URL}/login`, credentials);
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('authUser', JSON.stringify(response.data.user));
+      // Backend returns { success, data: { token, user } }
+      const payload = response.data.data || response.data;
+      if (payload.token) {
+        localStorage.setItem('authToken', payload.token);
+        localStorage.setItem('authUser', JSON.stringify(payload.user));
         // Nettoyer les anciens tokens
         localStorage.removeItem('token');
         localStorage.removeItem('user');

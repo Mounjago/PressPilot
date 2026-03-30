@@ -1,18 +1,20 @@
 /**
- * COMPOSANT ROUTE PROTÉGÉE - Protection des routes nécessitant une authentification
- * Composant React pour protéger les pages nécessitant une connexion
+ * COMPOSANT ROUTE PROTEGEE - Protection des routes avec support workspace
+ * Gere auth + role + interface (press/rp)
  */
 
 import React, { useEffect } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import LoadingSpinner from './LoadingSpinner';
 
-// Composant principal de route protégée
+// Route protegee standard (auth requise)
 const ProtectedRoute = ({
   children,
   requireRole = null,
   requirePermission = null,
+  requireInterface = null,
   fallbackPath = '/login'
 }) => {
   const {
@@ -22,9 +24,9 @@ const ProtectedRoute = ({
     hasRole,
     hasPermission: checkPermission
   } = useAuth();
+  const { currentWorkspace, isReady, needsWorkspaceSelection, canAccessInterface } = useWorkspace();
   const location = useLocation();
 
-  // Log pour le débogage en développement
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.log('ProtectedRoute:', {
@@ -33,17 +35,19 @@ const ProtectedRoute = ({
         user: user?.email,
         currentPath: location.pathname,
         requireRole,
-        requirePermission
+        requireInterface,
+        currentWorkspace,
+        isReady
       });
     }
-  }, [isAuthenticated, isLoading, user, location.pathname, requireRole, requirePermission]);
+  }, [isAuthenticated, isLoading, user, location.pathname, requireRole, requireInterface, currentWorkspace, isReady]);
 
-  // Afficher le chargement pendant la vérification de l'authentification
+  // Chargement de l'auth
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  // Rediriger vers la page de connexion si non authentifié
+  // Non authentifie -> login
   if (!isAuthenticated) {
     return (
       <Navigate
@@ -54,13 +58,23 @@ const ProtectedRoute = ({
     );
   }
 
-  // Vérifier le rôle requis si spécifié
+  // Workspace pas encore pret
+  if (!isReady) {
+    return <LoadingSpinner />;
+  }
+
+  // Multi-workspace sans selection -> workspace selector
+  if (needsWorkspaceSelection) {
+    return <Navigate to="/workspace" replace />;
+  }
+
+  // Verification du role
   if (requireRole && !hasRole(requireRole)) {
     return (
       <Navigate
         to="/unauthorized"
         state={{
-          message: `Accès refusé. Rôle requis: ${requireRole}`,
+          message: `Acces refuse. Role requis: ${requireRole}`,
           from: location.pathname
         }}
         replace
@@ -68,13 +82,13 @@ const ProtectedRoute = ({
     );
   }
 
-  // Vérifier la permission requise si spécifiée
+  // Verification de la permission
   if (requirePermission && !checkPermission(requirePermission)) {
     return (
       <Navigate
         to="/unauthorized"
         state={{
-          message: `Accès refusé. Permission requise: ${requirePermission}`,
+          message: `Acces refuse. Permission requise: ${requirePermission}`,
           from: location.pathname
         }}
         replace
@@ -82,12 +96,32 @@ const ProtectedRoute = ({
     );
   }
 
-  // Rendre les enfants ou utiliser Outlet pour les routes nested
+  // Verification de l'interface requise
+  if (requireInterface && !canAccessInterface(requireInterface)) {
+    // Rediriger vers le dashboard de l'interface courante
+    const fallback = currentWorkspace === 'rp' ? '/rp/dashboard' : '/press/dashboard';
+    return <Navigate to={fallback} replace />;
+  }
+
   return children || <Outlet />;
 };
 
-// Composant spécialisé pour les routes admin
-export const AdminRoute = ({ children, fallbackPath = '/dashboard' }) => (
+// Route protegee pour l'espace Press
+export const PressRoute = ({ children }) => (
+  <ProtectedRoute requireInterface="press">
+    {children}
+  </ProtectedRoute>
+);
+
+// Route protegee pour l'espace RP
+export const RPRoute = ({ children }) => (
+  <ProtectedRoute requireInterface="rp">
+    {children}
+  </ProtectedRoute>
+);
+
+// Route admin (acces aux deux interfaces)
+export const AdminRoute = ({ children, fallbackPath = '/workspace' }) => (
   <ProtectedRoute
     requireRole="admin"
     fallbackPath={fallbackPath}
@@ -96,8 +130,8 @@ export const AdminRoute = ({ children, fallbackPath = '/dashboard' }) => (
   </ProtectedRoute>
 );
 
-// Composant spécialisé pour les routes modérateur
-export const ModeratorRoute = ({ children, fallbackPath = '/dashboard' }) => (
+// Composant pour les routes modérateur
+export const ModeratorRoute = ({ children, fallbackPath = '/workspace' }) => (
   <ProtectedRoute
     requireRole={['admin', 'moderator']}
     fallbackPath={fallbackPath}
@@ -106,38 +140,45 @@ export const ModeratorRoute = ({ children, fallbackPath = '/dashboard' }) => (
   </ProtectedRoute>
 );
 
-// Hook personnalisé pour les redirections automatiques
+// Hook pour les redirections automatiques
 export const useAuthRedirect = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
-    // Ne pas faire de redirection automatique - laisser les composants gérer ça
-    // Ceci évite les boucles de redirection
+    // Redirection geree par les composants
   }, [isAuthenticated, isLoading, location.pathname]);
 
   return { isAuthenticated, isLoading };
 };
 
-// Composant pour les pages publiques (redirige si déjà connecté)
-export const PublicRoute = ({ children, redirectTo = '/dashboard' }) => {
+// Route publique (redirige si deja connecte)
+export const PublicRoute = ({ children, redirectTo = null }) => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { currentWorkspace, isMultiWorkspace, isReady } = useWorkspace();
 
-  // Afficher le chargement
-  if (isLoading) {
+  if (isLoading || !isReady) {
     return <LoadingSpinner />;
   }
 
-  // Rediriger si déjà authentifié
   if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    // Rediriger vers le bon dashboard selon le workspace
+    if (redirectTo) {
+      return <Navigate to={redirectTo} replace />;
+    }
+
+    if (isMultiWorkspace && !currentWorkspace) {
+      return <Navigate to="/workspace" replace />;
+    }
+
+    const target = currentWorkspace === 'rp' ? '/rp/dashboard' : '/press/dashboard';
+    return <Navigate to={target} replace />;
   }
 
-  // Rendre les enfants si non authentifié
   return children;
 };
 
-// Composant de route conditionnelle
+// Route conditionnelle
 export const ConditionalRoute = ({
   children,
   condition,
@@ -146,17 +187,14 @@ export const ConditionalRoute = ({
 }) => {
   const { isLoading } = useAuth();
 
-  // Afficher le chargement
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  // Rediriger si une URL de redirection est fournie
   if (!condition && redirectTo) {
     return <Navigate to={redirectTo} replace />;
   }
 
-  // Rendre le fallback ou les enfants selon la condition
   return condition ? children : (fallback || null);
 };
 

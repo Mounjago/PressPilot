@@ -15,6 +15,7 @@
     "@sentry/react": "^7.94.0",
     "axios": "^1.6.7",
     "chart.js": "^4.5.1",
+    "dompurify": "^3.3.3",
     "form-data": "^4.0.4",
     "framer-motion": "^10.16.16",
     "jwt-decode": "^4.0.0",

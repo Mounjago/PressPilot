@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Save, User, Lock, Bell, Mail, Globe, Palette, Database, Send } from 'lucide-react';
+import { Save, User, Lock, Bell, Mail, Globe, Palette, Database, Send, Bot, Zap, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import Layout from '../components/Layout';
 import IMAPSettings from '../components/IMAPSettings';
-import { authApi } from '../api';
+import { authApi, aiApi } from '../api';
 import '../styles/Dashboard.css';
 
 const Settings = () => {
@@ -57,6 +57,21 @@ const Settings = () => {
     confirmPassword: ''
   });
 
+  // Parametres IA
+  const [aiSettings, setAiSettings] = useState({
+    provider: 'anthropic',
+    apiKey: '',
+    model: ''
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiTestLoading, setAiTestLoading] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState(null);
+  const [aiHasExistingKey, setAiHasExistingKey] = useState(false);
+  const [aiKeyPreview, setAiKeyPreview] = useState(null);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [aiAvailableModels, setAiAvailableModels] = useState({});
+  const [aiDefaultModels, setAiDefaultModels] = useState({});
+
   // Charger les paramètres email existants
   useEffect(() => {
     const loadEmailSettings = async () => {
@@ -72,6 +87,33 @@ const Settings = () => {
 
     if (user) {
       loadEmailSettings();
+    }
+  }, [user]);
+
+  // Charger les parametres IA
+  useEffect(() => {
+    const loadAiSettings = async () => {
+      try {
+        const response = await aiApi.getSettings();
+        if (response.success) {
+          const data = response.data;
+          setAiSettings({
+            provider: data.provider || 'anthropic',
+            apiKey: '',
+            model: data.model || ''
+          });
+          setAiHasExistingKey(data.hasApiKey);
+          setAiKeyPreview(data.apiKeyPreview);
+          setAiAvailableModels(data.availableModels || {});
+          setAiDefaultModels(data.defaultModels || {});
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des parametres IA:', error);
+      }
+    };
+
+    if (user) {
+      loadAiSettings();
     }
   }, [user]);
 
@@ -163,12 +205,78 @@ const Settings = () => {
     }
   };
 
+  const handleAiSettingsSubmit = async (e) => {
+    e.preventDefault();
+    setAiLoading(true);
+    setMessage('');
+    setAiTestResult(null);
+
+    try {
+      const payload = {
+        provider: aiSettings.provider,
+        model: aiSettings.model || undefined
+      };
+      // Only send apiKey if user typed a new one
+      if (aiSettings.apiKey) {
+        payload.apiKey = aiSettings.apiKey;
+      }
+      const result = await aiApi.updateSettings(payload);
+      if (result.success) {
+        setMessage('Parametres IA mis a jour avec succes !');
+        setAiHasExistingKey(result.data.hasApiKey);
+        setAiSettings(prev => ({ ...prev, apiKey: '' }));
+        setShowApiKey(false);
+        // Reload to get updated preview
+        const refreshed = await aiApi.getSettings();
+        if (refreshed.success) {
+          setAiKeyPreview(refreshed.data.apiKeyPreview);
+        }
+      } else {
+        setMessage(result.message || 'Erreur lors de la mise a jour des parametres IA');
+      }
+    } catch (error) {
+      console.error('Erreur AI settings:', error);
+      setMessage(error.response?.data?.message || 'Erreur lors de la mise a jour des parametres IA');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAiTestConnection = async () => {
+    setAiTestLoading(true);
+    setAiTestResult(null);
+
+    try {
+      const result = await aiApi.testConnection();
+      setAiTestResult({
+        success: true,
+        message: result.message,
+        latency: result.data?.latencyMs,
+        model: result.data?.model
+      });
+    } catch (error) {
+      setAiTestResult({
+        success: false,
+        message: error.response?.data?.message || 'Echec de la connexion'
+      });
+    } finally {
+      setAiTestLoading(false);
+    }
+  };
+
+  const providerLabels = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic (Claude)',
+    gemini: 'Google Gemini'
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'email', label: 'Email', icon: Send },
     { id: 'imap', label: 'IMAP/POP3', icon: Database },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'general', label: 'Général', icon: Globe },
+    { id: 'ai', label: 'IA', icon: Bot },
     { id: 'security', label: 'Sécurité', icon: Lock }
   ];
 
@@ -529,6 +637,205 @@ const Settings = () => {
                     </select>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Onglet IA */}
+            {activeTab === 'ai' && (
+              <div className="settings-section">
+                <h2 className="settings-section-title">
+                  <Bot size={20} />
+                  Configuration Intelligence Artificielle
+                </h2>
+
+                <form onSubmit={handleAiSettingsSubmit} className="settings-form">
+                  <div className="form-section">
+                    <h3>Provider IA</h3>
+                    <p className="form-section-description">
+                      Choisissez le service d'IA pour la generation de vos communiques de presse
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                      {['anthropic', 'openai', 'gemini'].map(prov => (
+                        <button
+                          key={prov}
+                          type="button"
+                          onClick={() => {
+                            setAiSettings(prev => ({ ...prev, provider: prov, model: '' }));
+                            setAiTestResult(null);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '16px',
+                            borderRadius: '12px',
+                            border: aiSettings.provider === prov ? '2px solid #0ED894' : '2px solid #e5e7eb',
+                            backgroundColor: aiSettings.provider === prov ? '#f0fdf9' : 'white',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: aiSettings.provider === prov ? '#0ED894' : '#374151' }}>
+                            {providerLabels[prov]}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                            {prov === 'anthropic' && 'Claude Sonnet / Opus'}
+                            {prov === 'openai' && 'GPT-4 / GPT-4o'}
+                            {prov === 'gemini' && 'Gemini Pro / Flash'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h3>Cle API {providerLabels[aiSettings.provider]}</h3>
+                    <p className="form-section-description">
+                      Votre cle est chiffree (AES-256) et stockee de maniere securisee
+                    </p>
+
+                    {aiHasExistingKey && aiKeyPreview && (
+                      <div style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: '8px',
+                        marginBottom: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <CheckCircle size={16} style={{ color: '#16a34a' }} />
+                        <span style={{ fontSize: '13px', color: '#16a34a' }}>
+                          Cle configuree : {aiKeyPreview}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label>{aiHasExistingKey ? 'Remplacer la cle API' : 'Cle API'}</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={aiSettings.apiKey}
+                          onChange={(e) => setAiSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                          placeholder={aiHasExistingKey ? 'Laisser vide pour conserver la cle actuelle' : `Entrez votre cle API ${providerLabels[aiSettings.provider]}`}
+                          style={{ paddingRight: '40px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#6b7280',
+                            padding: '4px'
+                          }}
+                        >
+                          {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <small className="form-help">
+                        {aiSettings.provider === 'anthropic' && 'Obtenez votre cle sur console.anthropic.com'}
+                        {aiSettings.provider === 'openai' && 'Obtenez votre cle sur platform.openai.com'}
+                        {aiSettings.provider === 'gemini' && 'Obtenez votre cle sur aistudio.google.com'}
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h3>Modele</h3>
+                    <div className="form-group">
+                      <label>Modele IA</label>
+                      <select
+                        value={aiSettings.model}
+                        onChange={(e) => setAiSettings(prev => ({ ...prev, model: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          backgroundColor: 'white'
+                        }}
+                      >
+                        <option value="">Par defaut ({aiDefaultModels[aiSettings.provider] || ''})</option>
+                        {(aiAvailableModels[aiSettings.provider] || []).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={aiLoading}
+                    >
+                      <Save size={16} />
+                      {aiLoading ? 'Sauvegarde...' : 'Sauvegarder'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleAiTestConnection}
+                      disabled={aiTestLoading || (!aiHasExistingKey && !aiSettings.apiKey)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 20px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        backgroundColor: 'white',
+                        cursor: (aiTestLoading || (!aiHasExistingKey && !aiSettings.apiKey)) ? 'not-allowed' : 'pointer',
+                        opacity: (aiTestLoading || (!aiHasExistingKey && !aiSettings.apiKey)) ? 0.5 : 1
+                      }}
+                    >
+                      {aiTestLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                      {aiTestLoading ? 'Test en cours...' : 'Tester la connexion'}
+                    </button>
+                  </div>
+
+                  {aiTestResult && (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: aiTestResult.success ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                      backgroundColor: aiTestResult.success ? '#f0fdf4' : '#fef2f2',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px'
+                    }}>
+                      {aiTestResult.success
+                        ? <CheckCircle size={18} style={{ color: '#16a34a', marginTop: '1px' }} />
+                        : <XCircle size={18} style={{ color: '#dc2626', marginTop: '1px' }} />
+                      }
+                      <div>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: aiTestResult.success ? '#16a34a' : '#dc2626'
+                        }}>
+                          {aiTestResult.message}
+                        </div>
+                        {aiTestResult.success && aiTestResult.latency && (
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                            Latence : {aiTestResult.latency}ms | Modele : {aiTestResult.model}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </form>
               </div>
             )}
 

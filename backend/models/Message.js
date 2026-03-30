@@ -4,6 +4,13 @@
  */
 
 const mongoose = require('mongoose');
+const winston = require('winston');
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  defaultMeta: { service: 'presspilot-message' },
+  transports: [new winston.transports.Console()]
+});
 
 const attachmentSchema = new mongoose.Schema({
   filename: {
@@ -517,7 +524,7 @@ messageSchema.pre('save', async function(next) {
         this.userId = config.userId;
       }
     } catch (error) {
-      console.error('Erreur récupération userId:', error);
+      logger.error('Erreur recuperation userId', { error: error.message });
     }
   }
   next();

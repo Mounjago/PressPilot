@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development.local
+backend/.env
+
+# Keep example files
+!.env.example
+!backend/.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+frontend.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test/debug files
+test-*.html
+debug-*.html
+fix-*.html
+
+# Claude AI
+.claude/
+
+# Runtime
+pids
+*.pid
+*.seed
+
+# Temp/backup files
+*.backup
+.railway-deploy
+env
+coverage/
+
+# Old/unused directories
+frontend/
+
+# Shell scripts (deployment helpers)
+check-deployment.sh
+fix-cache-issue.sh

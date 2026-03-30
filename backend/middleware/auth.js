@@ -3,8 +3,17 @@
  * Middleware Express pour vérifier et valider les tokens JWT
  */
 
+const winston = require('winston');
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  defaultMeta: { service: 'presspilot-auth' },
+  transports: [new winston.transports.Console()]
+});
+
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getInterfacesForRole, mapLegacyRole, isAdminRole } = require('../constants/roles');
 
 /**
  * Middleware d'authentification principal
@@ -90,11 +99,17 @@ const auth = async (req, res, next) => {
       });
     }
 
+    // Resoudre le role (compatibilite legacy)
+    const resolvedRole = mapLegacyRole(user.role);
+
     // Ajouter les informations utilisateur à la requête
     req.user = {
       id: user._id,
       email: user.email,
-      role: user.role,
+      role: resolvedRole,
+      interfaces: user.getAccessibleInterfaces(),
+      organizationId: user.organizationId || null,
+      isAdmin: isAdminRole(resolvedRole),
       name: user.name,
       company: user.company,
       subscription: user.subscription
@@ -106,7 +121,7 @@ const auth = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('Erreur dans le middleware d\'authentification:', error);
+    logger.error('Erreur dans le middleware d\'authentification', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur lors de l\'authentification'
@@ -130,9 +145,7 @@ const authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Accès refusé. Privilèges insuffisants.',
-        requiredRoles: roles,
-        userRole: req.user.role
+        message: 'Access denied. Insufficient privileges.'
       });
     }
 
@@ -170,10 +183,14 @@ const optionalAuth = async (req, res, next) => {
       const user = await User.findById(decoded.id).select('-password');
 
       if (user && user.isActive && !user.isLocked) {
+        const resolvedRole = mapLegacyRole(user.role);
         req.user = {
           id: user._id,
           email: user.email,
-          role: user.role,
+          role: resolvedRole,
+          interfaces: user.getAccessibleInterfaces(),
+          organizationId: user.organizationId || null,
+          isAdmin: isAdminRole(resolvedRole),
           name: user.name,
           company: user.company,
           subscription: user.subscription
@@ -181,14 +198,14 @@ const optionalAuth = async (req, res, next) => {
         req.token = token;
       }
     } catch (jwtError) {
-      // Token invalide ou expiré, continuer sans authentification
-      console.log('Token optionnel invalide ou expiré:', jwtError.message);
+      // Token invalide ou expire, continuer sans authentification
+      // Do not log token details for security
     }
 
     next();
 
   } catch (error) {
-    console.error('Erreur dans le middleware d\'authentification optionnel:', error);
+    logger.error('Erreur dans le middleware d\'authentification optionnel', { error: error.message });
     // En cas d'erreur, continuer sans authentification
     next();
   }
@@ -275,7 +292,7 @@ const requireOwnership = (resourceIdParam = 'id', userIdField = 'userId') => {
     }
 
     // Les admins ont accès à tout
-    if (req.user.role === 'admin') {
+    if (isAdminRole(req.user.role)) {
       return next();
     }
 
@@ -302,7 +319,7 @@ const requireOwnership = (resourceIdParam = 'id', userIdField = 'userId') => {
       next();
 
     } catch (error) {
-      console.error('Erreur dans la vérification de propriété:', error);
+      logger.error('Erreur dans la vérification de propriété', { error: error.message });
       res.status(500).json({
         success: false,
         message: 'Erreur interne du serveur'
@@ -316,7 +333,7 @@ const requireOwnership = (resourceIdParam = 'id', userIdField = 'userId') => {
  */
 const logSecureAccess = (req, res, next) => {
   if (req.user) {
-    console.log(`🔒 Accès sécurisé: ${req.user.email} -> ${req.method} ${req.originalUrl} depuis ${req.ip}`);
+    logger.info('Secure access', { userId: req.user.id, method: req.method, url: req.originalUrl });
   }
   next();
 };

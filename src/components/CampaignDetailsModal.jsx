@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import {
   X,
   Mail,
@@ -542,12 +543,20 @@ Cordialement,
                             </div>
                           )}
 
-                          {/* Corps du message */}
+                          {/* Corps du message - sanitized with DOMPurify */}
                           <div className="prose max-w-none">
                             <div
                               className="text-sm text-gray-700 whitespace-pre-wrap"
                               dangerouslySetInnerHTML={{
-                                __html: exchange.htmlContent || exchange.textContent || exchange.body
+                                __html: (() => {
+                                  const raw = exchange.htmlContent || exchange.textContent || exchange.body || '';
+                                  // Sanitize with DOMPurify - prevents XSS
+                                  return DOMPurify.sanitize(raw, {
+                                    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'span', 'div', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'img'],
+                                    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'],
+                                    ALLOW_DATA_ATTR: false,
+                                  });
+                                })()
                               }}
                             />
                           </div>

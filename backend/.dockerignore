@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Git
+.git/
+.gitignore
+
+# Logs
+logs/
+*.log
+
+# Uploads (mounted as volume)
+uploads/
+
+# Tests (not needed in production image)
+tests/
+jest.config.js
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker files (avoid recursive copy)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs
+*.md
+LICENSE
+
+# Dev scripts
+create-admin.js
+create-artist-project.js

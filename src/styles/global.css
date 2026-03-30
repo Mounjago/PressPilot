@@ -44,6 +44,42 @@
 
   /* Gradients */
   --gradient-bg: linear-gradient(135deg, var(--white) 0%, var(--secondary-color) 100%);
+
+  /* Workspace theming (defaults = press) */
+  --ws-accent: #6366f1;
+  --ws-accent-light: #eef2ff;
+  --ws-accent-hover: #4f46e5;
+  --ws-accent-shadow: rgba(99, 102, 241, 0.3);
+  --ws-accent-10: rgba(99, 102, 241, 0.1);
+  --ws-gradient: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+  --ws-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  --ws-header-border: rgba(99, 102, 241, 0.15);
+}
+
+/* ===== WORKSPACE THEMING ===== */
+
+/* Espace Attaches de presse - Indigo */
+[data-workspace="press"] {
+  --ws-accent: #6366f1;
+  --ws-accent-light: #eef2ff;
+  --ws-accent-hover: #4f46e5;
+  --ws-accent-shadow: rgba(99, 102, 241, 0.3);
+  --ws-accent-10: rgba(99, 102, 241, 0.1);
+  --ws-gradient: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+  --ws-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  --ws-header-border: rgba(99, 102, 241, 0.15);
+}
+
+/* Espace BandStream RP - Sky Blue */
+[data-workspace="rp"] {
+  --ws-accent: #0ea5e9;
+  --ws-accent-light: #e0f2fe;
+  --ws-accent-hover: #0284c7;
+  --ws-accent-shadow: rgba(14, 165, 233, 0.3);
+  --ws-accent-10: rgba(14, 165, 233, 0.1);
+  --ws-gradient: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+  --ws-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+  --ws-header-border: rgba(14, 165, 233, 0.15);
 }
 
 /* RESET ET BASE */

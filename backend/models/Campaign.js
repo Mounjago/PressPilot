@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const mongoosePaginate = require('mongoose-paginate-v2');
+const { CAMPAIGN_TYPES_LIST, INTERFACES_LIST } = require('../constants/roles');
 
 const CampaignSchema = new mongoose.Schema({
   // Informations de base
@@ -15,23 +16,64 @@ const CampaignSchema = new mongoose.Schema({
     maxlength: 1000
   },
 
-  // Référence au projet et artiste
+  // Type de campagne (multi-workspace)
+  campaignType: {
+    type: String,
+    enum: CAMPAIGN_TYPES_LIST,
+    default: 'artist_promo',
+    index: true
+  },
+
+  // Interface source (press / rp)
+  interface: {
+    type: String,
+    enum: INTERFACES_LIST,
+    default: 'press',
+    index: true
+  },
+
+  // Organisation (pour les campagnes RP)
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+    index: true
+  },
+
+  // Référence au projet et artiste (optionnels pour les campagnes RP)
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
-    required: true,
-    index: true
+    index: true,
+    default: null
   },
   artistId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Artist',
-    required: true,
-    index: true
+    index: true,
+    default: null
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+
+  // References vers les outils promo (BandStream RP uniquement)
+  pressReleaseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PressRelease',
+    default: null
+  },
+  eventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
+    default: null
+  },
+  mediaKitId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MediaKit',
+    default: null
   },
 
   // Contenu de la campagne
@@ -266,6 +308,19 @@ const CampaignSchema = new mongoose.Schema({
   collection: 'campaigns'
 });
 
+// Validation conditionnelle: artistId et projectId requis pour artist_promo
+CampaignSchema.pre('validate', function(next) {
+  if (this.campaignType === 'artist_promo') {
+    if (!this.artistId) {
+      this.invalidate('artistId', 'artistId est requis pour les campagnes de type artist_promo');
+    }
+    if (!this.projectId) {
+      this.invalidate('projectId', 'projectId est requis pour les campagnes de type artist_promo');
+    }
+  }
+  next();
+});
+
 // Index pour optimiser les requêtes
 CampaignSchema.index({ status: 1, scheduledAt: 1 });
 CampaignSchema.index({ projectId: 1, createdAt: -1 });
@@ -273,6 +328,9 @@ CampaignSchema.index({ artistId: 1, createdAt: -1 });
 CampaignSchema.index({ createdBy: 1, status: 1 });
 CampaignSchema.index({ 'metrics.openRate': -1 });
 CampaignSchema.index({ 'metrics.responseRate': -1 });
+CampaignSchema.index({ interface: 1, status: 1 });
+CampaignSchema.index({ campaignType: 1, createdAt: -1 });
+CampaignSchema.index({ organizationId: 1, createdAt: -1 });
 
 // Plugin de pagination
 CampaignSchema.plugin(mongoosePaginate);

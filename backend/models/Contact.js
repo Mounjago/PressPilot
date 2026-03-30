@@ -4,6 +4,7 @@
  */
 
 const mongoose = require('mongoose');
+const { INTERFACES_LIST, CONTACT_VISIBILITY_LIST } = require('../constants/roles');
 
 const ContactSchema = new mongoose.Schema({
   // Informations personnelles
@@ -240,6 +241,26 @@ const ContactSchema = new mongoose.Schema({
     status: String
   }],
 
+  // Workspace / Multi-interface
+  visibility: {
+    type: String,
+    enum: CONTACT_VISIBILITY_LIST,
+    default: 'private',
+    index: true
+  },
+  interface: {
+    type: String,
+    enum: INTERFACES_LIST,
+    default: 'press',
+    index: true
+  },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+    index: true
+  },
+
   // Métadonnées
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -266,6 +287,9 @@ ContactSchema.index({ 'media.type': 1, specializations: 1 });
 ContactSchema.index({ engagementScore: -1, status: 1 });
 ContactSchema.index({ lastContactDate: -1, status: 1 });
 ContactSchema.index({ createdBy: 1, status: 1 });
+ContactSchema.index({ visibility: 1, interface: 1 });
+ContactSchema.index({ organizationId: 1, visibility: 1 });
+ContactSchema.index({ interface: 1, createdBy: 1 });
 
 // Index de recherche textuelle
 ContactSchema.index({

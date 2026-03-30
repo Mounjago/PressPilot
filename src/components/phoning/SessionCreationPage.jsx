@@ -36,17 +36,11 @@ const SessionCreationPage = ({ artist, project, onCreateSession, onBack }) => {
   const loadContacts = async () => {
     try {
       setContactsLoading(true);
-      console.log('🔄 Chargement des contacts pour la session...');
-
-      // Debug authentication
+      // Validate authentication token
       const token = localStorage.getItem('authToken');
-      console.log('🔐 Auth token exists:', !!token);
-      console.log('🔐 Token length:', token?.length);
-      console.log('🔐 Token preview:', token?.substring(0, 20) + '...');
 
       // Si le token semble invalide, nettoyer le localStorage et rediriger
       if (!token || token.length < 20 || token === 'undefined' || token === 'null') {
-        console.warn('🚨 Token invalide détecté, nettoyage du localStorage...');
         localStorage.clear();
         window.location.href = '/login';
         return;

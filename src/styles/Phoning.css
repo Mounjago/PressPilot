@@ -1,5 +1,6 @@
-/* Page Phoning - Centre d'appels */
 @import url('./global.css');
+
+/* Page Phoning - Centre d'appels */
 
 .phoning-page {
   font-family: 'Inter', sans-serif;
@@ -84,14 +85,14 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
   color: white;
-  box-shadow: 0 4px 12px rgba(14, 216, 148, 0.3);
+  box-shadow: 0 4px 12px var(--ws-accent-shadow, rgba(14, 216, 148, 0.3));
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(14, 216, 148, 0.4);
+  box-shadow: 0 6px 20px var(--ws-accent-shadow, rgba(14, 216, 148, 0.4));
 }
 
 .btn-secondary {
@@ -135,7 +136,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
 }
 
 .stat-card:hover {
@@ -198,7 +199,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
 }
 
 .section-header {
@@ -281,7 +282,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
   color: white;
   display: flex;
   align-items: center;
@@ -331,7 +332,7 @@
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
   color: white;
   font-size: 1.125rem;
   cursor: pointer;
@@ -366,7 +367,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
 }
 
 .phoning-placeholder {
@@ -495,7 +496,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #0ED894 0%, #10b981 100%);
+  background: var(--ws-gradient, linear-gradient(135deg, #0ED894 0%, #10b981 100%));
 }
 
 .phoning-recent-history h2 {

@@ -6,17 +6,24 @@ const { Pool } = require('pg');
 // Configuration de la connexion à PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: true }
+    : { rejectUnauthorized: false }
 });
+
+// Validate JWT_SECRET exists at startup
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET must be defined in environment variables and be at least 32 characters.');
+  process.exit(1);
+}
 
 // Fonction pour générer un token JWT
 const generateToken = (userId) => {
   return jwt.sign(
     { id: userId },
-    process.env.JWT_SECRET || 'votre_secret_jwt_temporaire',
-    { expiresIn: '24h' }
+    JWT_SECRET,
+    { expiresIn: '24h', issuer: 'presspilot', audience: 'presspilot-users' }
   );
 };
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import config from '../config';
 
 function AiModal({ isOpen, onClose, selectedCount }) {
   const [prompt, setPrompt] = useState("");
@@ -8,42 +9,26 @@ function AiModal({ isOpen, onClose, selectedCount }) {
   const generateWithAI = async () => {
     setLoading(true);
 
-    const promptText = `
-Tu es un expert en relations presse. Rédige un communiqué de presse professionnel et percutant à destination des journalistes.
-
-Le communiqué doit inclure :
-- Un titre clair et accrocheur
-- Un chapeau (résumé de 2 phrases)
-- Un corps structuré avec paragraphes informatifs
-- Des citations humaines si pertinent
-- Un encart “Infos clés” si nécessaire
-- Un appel à action ou à contact à la fin
-
-Sujet du communiqué : "${prompt}"
-
-Reste sobre, concis, orienté presse écrite. Langue : français.
-`;
-
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      // Proxy AI requests through backend to keep API key server-side
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${config.apiUrl}/ai/generate-press-release`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+          "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          model: "gpt-4",
-          messages: [{ role: "user", content: promptText }],
-          temperature: 0.7,
-        }),
+        body: JSON.stringify({ subject: prompt }),
       });
 
       const data = await response.json();
-      const finalText = data.choices?.[0]?.message?.content || "Erreur de génération.";
-      setGenerated(finalText);
+      if (data.success) {
+        setGenerated(data.data?.content || "Erreur de génération.");
+      } else {
+        setGenerated(`Erreur: ${data.message || 'Erreur de génération.'}`);
+      }
     } catch (error) {
-      console.error(error);
-      setGenerated("❌ Une erreur est survenue lors de la génération.");
+      setGenerated("Une erreur est survenue lors de la génération.");
     } finally {
       setLoading(false);
     }

@@ -1,29 +1,39 @@
 # Variables d'environnement pour Railway
 
-## Variables à configurer dans Railway Settings :
+## Variables a configurer dans Railway Settings :
+
+> **IMPORTANT** : Ne JAMAIS ecrire de vrais credentials dans ce fichier.
+> Configurez-les directement dans le dashboard Railway.
 
 ```
-MONGODB_URI=mongodb://mongo:RmgNTDnqwAMzDabcCSOyXNMfOsxZGnoc@turntable.proxy.rlwy.net:43126
-
+MONGODB_URI=<your_mongodb_connection_string>
 NODE_ENV=production
-
-JWT_SECRET=presspilot-jwt-secret-2025
-
-MAILGUN_API_KEY=334e041590b98e90ec12d7b62ab4ccb7-ba8a60cd-d7df791d
-
-MAILGUN_DOMAIN=sandbox-123.mailgun.org
+JWT_SECRET=<generate_with: openssl rand -hex 64>
+JWT_EXPIRES_IN=7d
+MAILGUN_API_KEY=<your_mailgun_api_key>
+MAILGUN_DOMAIN=<your_mailgun_domain>
+ENCRYPTION_KEY=<generate_with: openssl rand -hex 32>
 ```
 
 ## Comment configurer :
 1. Aller dans Railway Dashboard
-2. Sélectionner le projet Backend PressPilot
-3. Aller dans Settings → Variables
+2. Selectionner le projet Backend PressPilot
+3. Aller dans Settings > Variables
 4. Ajouter chaque variable une par une
 
 ## Variables optionnelles (pour plus tard) :
 ```
-RINGOVER_API_KEY=your-ringover-api-key-here
+RINGOVER_API_KEY=<your_ringover_api_key>
 PORT=3001
+SENTRY_DSN=<your_sentry_dsn>
+REDIS_URL=<your_redis_url>
 ```
 
-⚠️ **IMPORTANT** : Ne jamais commiter ce fichier dans le repository public !
+## Generer des secrets securises :
+```bash
+# JWT Secret (64 bytes hex)
+openssl rand -hex 64
+
+# Encryption Key (32 bytes hex)
+openssl rand -hex 32
+```

@@ -6,6 +6,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { ROLES_LIST, INTERFACES_LIST, ROLE_INTERFACE_ACCESS, isAdminRole, getInterfacesForRole } = require('../constants/roles');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -25,7 +27,16 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Le mot de passe est obligatoire'],
-    minLength: [8, 'Le mot de passe doit contenir au moins 8 caractères']
+    minLength: [12, 'Le mot de passe doit contenir au moins 12 caracteres'],
+    validate: {
+      validator: function(value) {
+        // Skip validation if password is already hashed (bcrypt hash starts with $2)
+        if (value.startsWith('$2')) return true;
+        // Require uppercase, lowercase, number, and special char
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{12,}$/.test(value);
+      },
+      message: 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractere special'
+    }
   },
   company: {
     type: String,
@@ -34,8 +45,28 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'moderator'],
-    default: 'user'
+    enum: [...ROLES_LIST, 'user', 'admin', 'moderator'], // Legacy roles kept for migration compatibility
+    default: 'press_agent'
+  },
+
+  // Interfaces auxquelles l'utilisateur a acces (derive du role, surcharge possible)
+  interfaces: [{
+    type: String,
+    enum: INTERFACES_LIST
+  }],
+
+  // Organisation rattachee (obligatoire pour bandstream_rp)
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+    index: true
+  },
+
+  // Traçabilite de la migration depuis l'ancien systeme de roles
+  _migratedFrom: {
+    type: String,
+    default: null
   },
   emailVerified: {
     type: Boolean,
@@ -139,6 +170,21 @@ const userSchema = new mongoose.Schema({
       type: Date
     }
   },
+  aiSettings: {
+    provider: {
+      type: String,
+      enum: ['openai', 'anthropic', 'gemini'],
+      default: 'anthropic'
+    },
+    apiKey: {
+      type: String,
+      default: null
+    },
+    model: {
+      type: String,
+      default: null
+    }
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -150,10 +196,12 @@ const userSchema = new mongoose.Schema({
 });
 
 // Index pour les performances
-userSchema.index({ email: 1 });
+// Note: email already has unique: true on the schema field (creates an index)
 userSchema.index({ company: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ lastLogin: -1 });
+userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ organizationId: 1, isActive: 1 });
 
 // Virtual pour le statut de verrouillage
 userSchema.virtual('isLocked').get(function() {
@@ -191,7 +239,9 @@ userSchema.methods.generateAuthToken = function() {
   const payload = {
     id: this._id,
     email: this.email,
-    role: this.role
+    role: this.role,
+    interfaces: this.getAccessibleInterfaces(),
+    organizationId: this.organizationId || null
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, {
@@ -199,6 +249,31 @@ userSchema.methods.generateAuthToken = function() {
     issuer: 'presspilot',
     audience: 'presspilot-users'
   });
+};
+
+// Retourne les interfaces accessibles (surcharge ou derive du role)
+userSchema.methods.getAccessibleInterfaces = function() {
+  // Si des interfaces sont explicitement definies, les utiliser
+  if (this.interfaces && this.interfaces.length > 0) {
+    return this.interfaces;
+  }
+  // Sinon, deriver du role
+  return getInterfacesForRole(this.role);
+};
+
+// Verifie si l'utilisateur peut acceder a une interface
+userSchema.methods.canAccessInterface = function(interfaceName) {
+  return this.getAccessibleInterfaces().includes(interfaceName);
+};
+
+// Verifie si l'utilisateur est admin
+userSchema.methods.isAdmin = function() {
+  return isAdminRole(this.role);
+};
+
+// Verifie si l'utilisateur est super admin
+userSchema.methods.isSuperAdmin = function() {
+  return this.role === 'super_admin';
 };
 
 // Méthode pour incrémenter les tentatives de connexion
@@ -255,6 +330,51 @@ userSchema.methods.generatePasswordResetToken = function() {
   return token;
 };
 
+// Pre-save: encrypt AI API key
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('aiSettings.apiKey') || !this.aiSettings?.apiKey) return next();
+  // Skip if already encrypted (contains ':' separator from iv:encrypted format)
+  if (this.aiSettings.apiKey.includes(':')) return next();
+  try {
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey || encryptionKey.length < 32) {
+      return next(new Error('ENCRYPTION_KEY must be defined (min 32 chars)'));
+    }
+    const key = crypto.scryptSync(encryptionKey, 'presspilot-ai-salt', 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(this.aiSettings.apiKey, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    this.aiSettings.apiKey = iv.toString('hex') + ':' + encrypted;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to decrypt AI API key
+userSchema.methods.getDecryptedAiApiKey = function() {
+  if (!this.aiSettings?.apiKey) return null;
+  try {
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey || encryptionKey.length < 32) {
+      throw new Error('ENCRYPTION_KEY must be defined (min 32 chars)');
+    }
+    const key = crypto.scryptSync(encryptionKey, 'presspilot-ai-salt', 32);
+    const parts = this.aiSettings.apiKey.split(':');
+    if (parts.length !== 2) {
+      throw new Error('Invalid encrypted API key format');
+    }
+    const iv = Buffer.from(parts[0], 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(parts[1], 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    throw new Error('Error decrypting AI API key: ' + error.message);
+  }
+};
+
 // Méthode pour obtenir les données publiques de l'utilisateur
 userSchema.methods.getPublicProfile = function() {
   return {
@@ -263,6 +383,8 @@ userSchema.methods.getPublicProfile = function() {
     email: this.email,
     company: this.company,
     role: this.role,
+    interfaces: this.getAccessibleInterfaces(),
+    organizationId: this.organizationId,
     avatar: this.avatar,
     emailVerified: this.emailVerified,
     subscription: this.subscription,
@@ -287,7 +409,7 @@ userSchema.pre('remove', async function(next) {
   try {
     // Ici vous pouvez ajouter la logique pour nettoyer les données associées
     // Par exemple, supprimer les projets, campagnes, etc. de l'utilisateur
-    console.log(`Nettoyage des données pour l'utilisateur: ${this.email}`);
+    // Cleanup associated data on user removal (projects, campaigns, etc.)
     next();
   } catch (error) {
     next(error);

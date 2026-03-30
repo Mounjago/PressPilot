@@ -1,9 +1,0 @@
-:80
-
-root * /app/dist
-file_server
-
-# Redirige toutes les routes vers index.html (important pour React Router)
-rewrite / {
-  try_files {path} /index.html
-}

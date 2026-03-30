@@ -1,0 +1,122 @@
+# PressPilot Backend - Docker Compose
+# Usage:
+#   Development : docker compose up
+#   Production  : docker compose -f docker-compose.yml --profile production up
+#   Tests only  : docker compose run --rm backend-test
+
+services:
+  # ==========================================
+  # MongoDB
+  # ==========================================
+  mongodb:
+    image: mongo:7
+    container_name: presspilot-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: presspilot
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================
+  # Redis (for Bull queues + cache)
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: presspilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Backend - Development
+  # ==========================================
+  backend:
+    build:
+      context: .
+      target: dev
+    container_name: presspilot-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb:27017/presspilot
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ==========================================
+  # Backend - Production
+  # ==========================================
+  backend-prod:
+    build:
+      context: .
+      target: production
+    container_name: presspilot-backend-prod
+    restart: unless-stopped
+    profiles:
+      - production
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/presspilot
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ==========================================
+  # Test runner (one-shot)
+  # ==========================================
+  backend-test:
+    build:
+      context: .
+      target: dev
+    container_name: presspilot-test
+    profiles:
+      - test
+    environment:
+      NODE_ENV: test
+      JWT_SECRET: test_jwt_secret_minimum_32_characters_long_enough
+      ENCRYPTION_KEY: test_encryption_key_minimum_32_chars_long_enough
+      MONGODB_URI: unused_memory_server
+      PORT: 0
+    command: ["npx", "jest", "--coverage", "--forceExit", "--detectOpenHandles"]
+
+volumes:
+  mongodb_data:
+  redis_data:
+  uploads_data:
+  logs_data:

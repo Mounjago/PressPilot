@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '../assets/logo-bandstream.png';
+import logo from '../assets/logo-presspilot.png';
 import '../styles/Register.css';
 
 const Register = () => {

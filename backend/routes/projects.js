@@ -1,78 +1,152 @@
-const express = require('express');
-const Project = require('../models/Project');
+const router = require('express').Router();
+const { body, param, query } = require('express-validator');
 const { auth } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const projectsController = require('../controllers/projectsController');
 
-const router = express.Router();
+// Specific routes BEFORE param routes
+router.get('/stats', auth, projectsController.getStats);
 
-// GET /api/projects - Liste des projets
-router.get('/', auth, async (req, res) => {
-  try {
-    const { artistId } = req.query;
-    const filter = artistId ? { artistId } : {};
+router.get('/upcoming', auth, projectsController.getUpcoming);
 
-    const projects = await Project.find(filter)
-      .populate('artistId', 'name')
-      .sort({ createdAt: -1 });
+router.get('/search',
+  auth,
+  [
+    query('q').notEmpty().withMessage('Terme de recherche requis').trim()
+  ],
+  validate,
+  projectsController.search
+);
 
-    res.json({
-      success: true,
-      data: projects
-    });
-  } catch (error) {
-    console.error('Erreur récupération projets:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur'
-    });
-  }
-});
+// General CRUD routes
+router.get('/',
+  auth,
+  [
+    query('page').optional().isInt({min:1}).withMessage('Page doit être un entier positif'),
+    query('limit').optional().isInt({min:1, max:100}).withMessage('Limite doit être entre 1 et 100'),
+    query('status').optional().isIn(['planning','active','completed','on_hold','cancelled'])
+      .withMessage('Statut invalide')
+  ],
+  validate,
+  projectsController.getAll
+);
 
-// GET /api/projects/:id - Récupérer un projet spécifique
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id)
-      .populate('artistId', 'name');
+router.post('/',
+  auth,
+  [
+    body('name').notEmpty().withMessage('Nom du projet requis').trim().escape(),
+    body('type').notEmpty().isIn(['single','ep','album','tour','event','other'])
+      .withMessage('Type de projet invalide'),
+    body('artistId').optional().isMongoId().withMessage('ID artiste invalide'),
+    body('releaseDate').optional().isISO8601().withMessage('Date de sortie invalide'),
+    body('budget.total').optional().isFloat({min:0}).withMessage('Budget doit être positif')
+  ],
+  validate,
+  projectsController.create
+);
 
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Projet non trouvé'
-      });
-    }
+// Param routes
+router.get('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide')
+  ],
+  validate,
+  projectsController.getById
+);
 
-    res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    console.error('Erreur récupération projet:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur'
-    });
-  }
-});
+router.put('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide'),
+    body('name').optional().trim().escape(),
+    body('status').optional().isIn(['planning','active','completed','on_hold','cancelled'])
+      .withMessage('Statut invalide'),
+    body('releaseDate').optional().isISO8601().withMessage('Date de sortie invalide')
+  ],
+  validate,
+  projectsController.update
+);
 
-// POST /api/projects - Créer un nouveau projet
-router.post('/', auth, async (req, res) => {
-  try {
-    const project = new Project(req.body);
-    await project.save();
+router.delete('/:id',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide')
+  ],
+  validate,
+  projectsController.delete
+);
 
-    await project.populate('artistId', 'name');
+// Project sub-resources
+router.post('/:id/milestones',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide'),
+    body('name').notEmpty().withMessage('Nom du jalon requis').trim().escape(),
+    body('dueDate').optional().isISO8601().withMessage('Date d\'échéance invalide'),
+    body('status').optional().isIn(['pending','in_progress','completed'])
+      .withMessage('Statut du jalon invalide')
+  ],
+  validate,
+  projectsController.addMilestone
+);
 
-    res.status(201).json({
-      success: true,
-      message: 'Projet créé avec succès',
-      data: project
-    });
-  } catch (error) {
-    console.error('Erreur création projet:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la création du projet'
-    });
-  }
-});
+router.put('/:id/milestones/:milestoneId',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID jalon invalide'),
+    param('milestoneId').isMongoId().withMessage('ID jalon invalide'),
+    body('status').optional().isIn(['pending','in_progress','completed'])
+      .withMessage('Statut du jalon invalide')
+  ],
+  validate,
+  projectsController.updateMilestone
+);
+
+router.post('/:id/expenses',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide'),
+    body('description').notEmpty().withMessage('Description requise').trim().escape(),
+    body('amount').isFloat({min:0}).withMessage('Montant doit être positif'),
+    body('category').optional().trim().escape()
+  ],
+  validate,
+  projectsController.addExpense
+);
+
+router.post('/:id/collaborators',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide'),
+    body('name').notEmpty().withMessage('Nom du collaborateur requis').trim().escape(),
+    body('role').notEmpty().withMessage('Rôle requis').trim().escape(),
+    body('email').optional().isEmail().normalizeEmail().withMessage('Email invalide')
+  ],
+  validate,
+  projectsController.addCollaborator
+);
+
+router.put('/:id/deliverables/:deliverable',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide'),
+    param('deliverable').notEmpty().withMessage('Livrable requis').trim(),
+    body('status').optional().isIn(['pending','in_progress','completed','delivered'])
+      .withMessage('Statut du livrable invalide')
+  ],
+  validate,
+  projectsController.updateDeliverable
+);
+
+// Analytics
+router.get('/:id/analytics',
+  auth,
+  [
+    param('id').isMongoId().withMessage('ID projet invalide')
+  ],
+  validate,
+  projectsController.getAnalytics
+);
 
 module.exports = router;

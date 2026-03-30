@@ -5,6 +5,17 @@ import Layout from "../components/Layout";
 import { uploadImageToCloudinary } from "../services/cloudinary";
 import artistsService from "../services/artistsApi";
 
+// HTML escape utility to prevent XSS in innerHTML templates
+const escapeHtml = (str) => {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const Artists = () => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -537,10 +548,10 @@ const Artists = () => {
             <div class="project-selection-list">
               ${projects.map(project => `
                 <div class="project-option" onclick="generateProjectReport('${project._id}', '${project.name}', '${artist.name}')">
-                  <h4>${project.name}</h4>
-                  <p>${project.type} • ${project.genre}</p>
-                  <p>Sortie: ${new Date(project.releaseDate).toLocaleDateString('fr-FR')}</p>
-                  <span class="project-status ${project.status}">${project.status}</span>
+                  <h4>${escapeHtml(project.name)}</h4>
+                  <p>${escapeHtml(project.type)} &bull; ${escapeHtml(project.genre)}</p>
+                  <p>Sortie: ${escapeHtml(new Date(project.releaseDate).toLocaleDateString('fr-FR'))}</p>
+                  <span class="project-status ${escapeHtml(project.status)}">${escapeHtml(project.status)}</span>
                 </div>
               `).join('')}
             </div>

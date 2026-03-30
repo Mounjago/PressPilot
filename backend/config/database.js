@@ -4,6 +4,22 @@
  */
 
 const mongoose = require('mongoose');
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  defaultMeta: { service: 'presspilot-db' },
+  transports: [new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.printf(({ timestamp, level, message, ...meta }) => {
+        const metaStr = Object.keys(meta).length > 1 ? ` ${JSON.stringify(meta)}` : '';
+        return `${timestamp} [${level}]: ${message}${metaStr}`;
+      })
+    )
+  })]
+});
 
 /**
  * Configuration de la connexion MongoDB
@@ -20,28 +36,28 @@ const connectDB = async () => {
     // URL de connexion MongoDB
     const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/presspilot';
 
-    console.log('🔄 Connexion à MongoDB...');
+    logger.info('Connexion a MongoDB...');
 
     // Connexion à MongoDB
     const conn = await mongoose.connect(mongoURI, options);
 
-    console.log(`✅ MongoDB connecté: ${conn.connection.host}:${conn.connection.port}/${conn.connection.name}`);
-    console.log(`📊 État de la connexion: ${conn.connection.readyState === 1 ? 'Connecté' : 'Déconnecté'}`);
+    logger.info('MongoDB connecte', { host: conn.connection.host, port: conn.connection.port, db: conn.connection.name });
+    logger.info('Etat de la connexion', { state: conn.connection.readyState === 1 ? 'Connecte' : 'Deconnecte' });
 
     // Log des informations de la base de données en développement
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🏷️  Nom de la base: ${conn.connection.name}`);
-      console.log(`🔗 URL de connexion: ${mongoURI.replace(/\/\/.*@/, '//***:***@')}`); // Masquer les credentials
+      logger.debug('Nom de la base', { db: conn.connection.name });
+      logger.debug('URL de connexion', { url: mongoURI.replace(/\/\/.*@/, '//***:***@') }); // Masquer les credentials
     }
 
     return conn;
 
   } catch (error) {
-    console.error('❌ Erreur de connexion MongoDB:', error.message);
+    logger.error('Erreur de connexion MongoDB', { error: error.message });
 
     // Log détaillé en développement
     if (process.env.NODE_ENV === 'development') {
-      console.error('Détails de l\'erreur:', error);
+      logger.error('Details de erreur', { error: error.message, stack: error.stack });
     }
 
     // Arrêter l'application en cas d'erreur de connexion
@@ -55,32 +71,32 @@ const connectDB = async () => {
 const setupDatabaseEvents = () => {
   // Connexion réussie
   mongoose.connection.on('connected', () => {
-    console.log('🟢 Mongoose connecté à MongoDB');
+    logger.info('Mongoose connecte a MongoDB');
   });
 
   // Erreur de connexion
   mongoose.connection.on('error', (err) => {
-    console.error('🔴 Erreur de connexion Mongoose:', err);
+    logger.error('Erreur de connexion Mongoose', { error: err.message });
   });
 
   // Déconnexion
   mongoose.connection.on('disconnected', () => {
-    console.log('🟡 Mongoose déconnecté de MongoDB');
+    logger.warn('Mongoose deconnecte de MongoDB');
   });
 
   // Reconnexion
   mongoose.connection.on('reconnected', () => {
-    console.log('🔄 Mongoose reconnecté à MongoDB');
+    logger.info('Mongoose reconnecte a MongoDB');
   });
 
   // Arrêt gracieux de l'application
   process.on('SIGINT', async () => {
     try {
       await mongoose.connection.close();
-      console.log('🛑 Connexion MongoDB fermée via signal d\'arrêt de l\'app');
+      logger.info('Connexion MongoDB fermee via signal arret');
       process.exit(0);
     } catch (error) {
-      console.error('❌ Erreur lors de la fermeture de la connexion MongoDB:', error);
+      logger.error('Erreur fermeture connexion MongoDB', { error: error.message });
       process.exit(1);
     }
   });
@@ -112,7 +128,7 @@ const getDatabaseStats = async () => {
       objects: stats.objects
     };
   } catch (error) {
-    console.error('Erreur lors de la récupération des statistiques:', error);
+    logger.error('Erreur recuperation statistiques', { error: error.message });
     throw error;
   }
 };
@@ -134,12 +150,12 @@ const cleanDatabase = async () => {
 
     for (const collection of collections) {
       await mongoose.connection.db.collection(collection.name).deleteMany({});
-      console.log(`🧹 Collection ${collection.name} nettoyée`);
+      logger.info('Collection nettoyee', { collection: collection.name });
     }
 
-    console.log('✅ Base de données nettoyée avec succès');
+    logger.info('Base de donnees nettoyee');
   } catch (error) {
-    console.error('❌ Erreur lors du nettoyage de la base de données:', error);
+    logger.error('Erreur nettoyage base de donnees', { error: error.message });
     throw error;
   }
 };
@@ -149,7 +165,7 @@ const cleanDatabase = async () => {
  */
 const seedDatabase = async () => {
   if (process.env.NODE_ENV === 'production') {
-    console.log('⚠️ Seeding ignoré en production');
+    logger.warn('Seeding ignore en production');
     return;
   }
 
@@ -159,7 +175,7 @@ const seedDatabase = async () => {
     // Vérifier si des utilisateurs existent déjà
     const userCount = await User.countDocuments();
     if (userCount > 0) {
-      console.log(`👥 ${userCount} utilisateur(s) déjà présent(s), seeding ignoré`);
+      logger.info('Seeding ignore, utilisateurs deja presents', { count: userCount });
       return;
     }
 
@@ -174,11 +190,11 @@ const seedDatabase = async () => {
     });
 
     await testUser.save();
-    console.log('🌱 Utilisateur de test créé:', testUser.email);
+    logger.info('Utilisateur de test cree', { email: testUser.email });
 
-    console.log('✅ Seeding de la base de données terminé');
+    logger.info('Seeding termine');
   } catch (error) {
-    console.error('❌ Erreur lors du seeding:', error);
+    logger.error('Erreur seeding', { error: error.message });
   }
 };
 

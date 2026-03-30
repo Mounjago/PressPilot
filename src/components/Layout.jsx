@@ -1,15 +1,28 @@
+/**
+ * LAYOUT - Mise en page avec theming workspace
+ * Applique un data-workspace attribute pour le theming CSS
+ */
+
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
-import logo from "../assets/logo-bandstream.png";
+import { useWorkspace } from "../contexts/WorkspaceContext";
+import logo from "../assets/logo-presspilot.png";
 import "../styles/Dashboard.css";
 
 const Layout = ({ children, title, subtitle }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState(() => {
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    return userData;
-  });
+  const { currentWorkspace, workspaceConfig } = useWorkspace();
+
+  const user = (() => {
+    try {
+      // Essayer authUser d'abord, puis user (legacy)
+      const data = localStorage.getItem("authUser") || localStorage.getItem("user");
+      return data ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  })();
 
   const getInitials = (name) => {
     if (!name) return "U";
@@ -17,7 +30,7 @@ const Layout = ({ children, title, subtitle }) => {
   };
 
   return (
-    <div className="dashboard">
+    <div className="dashboard" data-workspace={currentWorkspace || 'press'}>
       <header className="dashboard-header">
         <div className="header-left">
           <button
@@ -29,7 +42,19 @@ const Layout = ({ children, title, subtitle }) => {
           </button>
           <div className="logo-container">
             <img src={logo} alt="Logo PressPilot" className="logo" />
-            <div className="app-name">PressPilot</div>
+            {workspaceConfig && (
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                color: workspaceConfig.color,
+                background: `${workspaceConfig.color}10`,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                marginLeft: '8px'
+              }}>
+                {workspaceConfig.shortLabel}
+              </span>
+            )}
           </div>
         </div>
         <div className="user-menu">

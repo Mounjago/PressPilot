@@ -31,7 +31,9 @@ const initialState = {
   isLoading: true,
   error: null,
   loginAttempts: 0,
-  lastLoginAttempt: null
+  lastLoginAttempt: null,
+  interfaces: [],
+  organizationId: null
 };
 
 // Reducer pour gérer l'état d'authentification
@@ -55,7 +57,9 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: null,
         loginAttempts: 0,
-        lastLoginAttempt: null
+        lastLoginAttempt: null,
+        interfaces: action.payload.user?.interfaces || [],
+        organizationId: action.payload.user?.organizationId || null
       };
 
     case AUTH_ACTIONS.LOGIN_FAILURE:
@@ -87,7 +91,9 @@ const authReducer = (state, action) => {
         token: null,
         isAuthenticated: false,
         isLoading: false,
-        error: null
+        error: null,
+        interfaces: [],
+        organizationId: null
       };
 
     case AUTH_ACTIONS.UPDATE_PROFILE:
@@ -283,7 +289,8 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.data.success) {
-        const { token, user } = response.data;
+        // Backend returns { success, data: { token, user } }
+        const { token, user } = response.data.data || response.data;
 
         // Stocker en localStorage
         storage.setToken(token);
@@ -318,7 +325,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/register', userData);
 
       if (response.data.success) {
-        const { token, user } = response.data;
+        // Backend returns { success, data: { token, user } }
+        const { token, user } = response.data.data || response.data;
 
         // Stocker en localStorage
         storage.setToken(token);
@@ -367,7 +375,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.put('/auth/profile', profileData);
 
       if (response.data.success) {
-        const updatedUser = response.data.user;
+        // Backend returns { success, data: { ...profile } }
+        const updatedUser = response.data.data || response.data.user;
 
         // Mettre à jour en localStorage
         storage.setUser(updatedUser);
@@ -393,7 +402,9 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/refresh-token');
 
       if (response.data.success) {
-        const { token, user } = response.data;
+        // Backend returns { success, data: { token, user } }
+        const payload = response.data.data || response.data;
+        const { token, user } = payload;
 
         storage.setToken(token);
         if (user) {

@@ -2,7 +2,9 @@ import axios from "axios";
 import authService from './utils/authService';
 
 // URL de ton backend Railway
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
+  ? import.meta.env.VITE_API_URL
+  : 'http://localhost:3001';
 
 // Configuration sécurisée d'axios
 const api = axios.create({
@@ -788,6 +790,33 @@ export const authApi = {
   // Changer le mot de passe
   changePassword: async (passwordData) => {
     const response = await api.put('/auth/change-password', passwordData);
+    return response.data;
+  }
+};
+
+// ========== AI ==========
+export const aiApi = {
+  // Recuperer les parametres IA de l'utilisateur
+  getSettings: async () => {
+    const response = await api.get('/api/ai/settings');
+    return response.data;
+  },
+
+  // Mettre a jour les parametres IA
+  updateSettings: async (settings) => {
+    const response = await api.put('/api/ai/settings', settings);
+    return response.data;
+  },
+
+  // Tester la connexion au provider IA
+  testConnection: async () => {
+    const response = await api.post('/api/ai/test-connection');
+    return response.data;
+  },
+
+  // Generer un communique de presse
+  generatePressRelease: async (subject) => {
+    const response = await api.post('/api/ai/generate-press-release', { subject });
     return response.data;
   }
 };

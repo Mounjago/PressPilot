@@ -2,13 +2,16 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { WorkspaceProvider } from "./contexts/WorkspaceContext";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 
-console.log("🚀 Initialisation de PressPilot...");
+// Import build version info
+import "./buildVersion.js";
 
-// Créer le root et rendre l'application
+console.log("Initialisation de PressPilot...");
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
 root.render(
@@ -16,11 +19,13 @@ root.render(
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <WorkspaceProvider>
+            <App />
+          </WorkspaceProvider>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </React.StrictMode>
 );
 
-console.log("✅ PressPilot initialisé avec succès !");
+console.log("PressPilot initialise avec succes !");

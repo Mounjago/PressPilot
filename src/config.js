@@ -8,7 +8,7 @@ const config = {
   facebookAppId: import.meta.env.VITE_FACEBOOK_APP_ID || '',
   
   // Autres configurations
-  sentryDsn: "https://6b26653205cf4e72fa1b387d635ef2be@o4509141742714880.ingest.de.sentry.io/4509141765062736",
+  sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
   
   // Helpers
   isDevelopment: import.meta.env.DEV === true,
@@ -41,7 +41,9 @@ const config = {
   }
 };
 
-// Valider la configuration au chargement
-config.logConfig();
+// Only log configuration in development mode
+if (import.meta.env.DEV) {
+  config.logConfig();
+}
 
 export default config;

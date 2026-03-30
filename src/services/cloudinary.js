@@ -3,12 +3,13 @@
  * Gestion sécurisée des uploads d'avatars et covers
  */
 
-// Configuration Cloudinary
+// Configuration Cloudinary - API key read from environment variables only
 const CLOUDINARY_CONFIG = {
-  cloudName: 'presspilot', // Remplacez par votre cloud name
-  apiKey: '157592992482694',
-  uploadPreset: 'ml_default', // Preset unsigned par défaut
-  folder: 'artists' // Dossier pour organiser les images
+  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'presspilot',
+  uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default',
+  folder: 'artists'
+  // NOTE: apiKey intentionally omitted - unsigned uploads use preset only
+  // For signed operations, proxy through backend API
 };
 
 // Générateur d'ID public indevinable
@@ -108,24 +109,7 @@ export const uploadImageToCloudinary = async (file, folder = 'artists', onProgre
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
 
-    // Debug: afficher tous les paramètres envoyés
-    console.log('📋 Données envoyées à Cloudinary:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
-    }
-
-    // Debug complet
-    console.log('📤 Configuration Cloudinary:', {
-      cloudName: CLOUDINARY_CONFIG.cloudName,
-      uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type
-    });
-
-    // URL complète pour debug
     const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
-    console.log('🌐 URL d\'upload:', uploadUrl);
 
     // Créer une promesse avec suivi du progrès
     return new Promise((resolve, reject) => {

@@ -15,7 +15,7 @@
 
 .contacts-count {
   background: rgba(13, 211, 148, 0.1);
-  color: #0ED394;
+  color: var(--ws-accent, #0ED394);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 14px;
@@ -68,8 +68,8 @@
 
 .contacts-search input:focus {
   outline: none;
-  border-color: #0ED394;
-  box-shadow: 0 0 0 3px rgba(13, 211, 148, 0.1);
+  border-color: var(--ws-accent, #0ED394);
+  box-shadow: 0 0 0 3px var(--ws-accent-10, rgba(13, 211, 148, 0.1));
 }
 
 .contacts-filter-controls {
@@ -110,7 +110,7 @@
 }
 
 .view-toggle-btn.active {
-  background: #0ED394;
+  background: var(--ws-accent, #0ED394);
   color: white;
 }
 
@@ -153,7 +153,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid rgba(13, 211, 148, 0.3);
-  border-top: 3px solid #0ED394;
+  border-top: 3px solid var(--ws-accent, #0ED394);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;

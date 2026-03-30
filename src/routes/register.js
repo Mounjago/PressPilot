@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import "../styles/Register.css";
 import axios from "axios";
-import logo from "../assets/logo-bandstream.png";
+import logo from "../assets/logo-presspilot.png";
 import FacebookLoginButton from "../components/FacebookLoginButton";
 
 const Register = () => {

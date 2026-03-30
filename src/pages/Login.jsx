@@ -128,10 +128,10 @@ const Login = () => {
 
           <div className="register-link">
             <p>
-              Nouveau sur PressPilot ?
-              <Link to="/register" className="register-cta">
-                Créer un compte gratuitement
-              </Link>
+              Acces sur invitation uniquement.
+              <a href="mailto:contact@presspilot.com" className="register-cta">
+                Demander un acces
+              </a>
             </p>
           </div>
         </div>
